@@ -16,23 +16,29 @@ Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](ht
 
 ## Local demo
 
-Static host. Same four primitives. Canvas potato (Tater) follows `lip` and `pose`. LLM is a stub. No keys.
+`npm run demo` serves the canvas potato and, when `OPENAI_API_KEY` is set, a GPT-Live conversation.
+
+Tater speaks **replies**. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`.
+
+Voice model: `gpt-live-1` (OpenAI's live speech model, 16 kHz PCM over a server WebSocket). Reasoning backend: `gpt-5.6-terra`. Not GPT-4o.
 
 ```sh
 npm install
 npm run demo
 ```
 
-Open http://127.0.0.1:4173. **Play fixture** works without a mic (CI and cloud VMs). **Use mic** needs localhost or HTTPS.
+Open http://127.0.0.1:4173. **Play fixture** sends the fixture as user audio and plays Tater's reply (needs the key; works without a mic). **Use mic**, then **Stop**, to send a live turn. Mic needs localhost or HTTPS.
 
-Recorded artifact (audio + avatar):
+Keep the key on the Cloud Agent environment as runtime secret `OPENAI_API_KEY`. Do not commit it. Local override: `.env.local` (gitignored) is not read automatically; export the variable in the shell that runs `npm run demo`.
+
+Recorded artifact from the pre-conversation puppet path:
 
 - [`artifacts/potato-avatar-demo.mp4`](artifacts/potato-avatar-demo.mp4)
 - Poster: [`artifacts/potato-avatar-demo.jpg`](artifacts/potato-avatar-demo.jpg)
 
 ![Tater mid-talk](artifacts/potato-avatar-demo.jpg)
 
-Regenerate the fixture WAV or the recording with `npm run demo:fixture` and `npm run demo:record`. Track status in [ROADMAP.md](ROADMAP.md).
+Regenerate the fixture WAV or the puppet recording with `npm run demo:fixture` and `npm run demo:record`. Track status in [ROADMAP.md](ROADMAP.md).
 
 ## Not in scope
 

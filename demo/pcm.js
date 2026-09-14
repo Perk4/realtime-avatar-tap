@@ -32,6 +32,31 @@ export function floatsToPcm16(float32) {
   return pcm;
 }
 
+export function resamplePcm16(pcm, fromRate, toRate) {
+  if (fromRate === toRate) {
+    return pcm;
+  }
+  if (fromRate <= 0 || toRate <= 0) {
+    throw new Error("sampleRate");
+  }
+  const ratio = fromRate / toRate;
+  const length = Math.max(1, Math.floor(pcm.length / ratio));
+  const out = new Int16Array(length);
+  for (let i = 0; i < length; i++) {
+    const src = Math.min(pcm.length - 1, Math.floor(i * ratio));
+    out[i] = pcm[src] ?? 0;
+  }
+  return out;
+}
+
+export function pcm16ToFloat(pcm) {
+  const out = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) {
+    out[i] = (pcm[i] ?? 0) / 32768;
+  }
+  return out;
+}
+
 export function mixToMono(buffer) {
   const channels = buffer.numberOfChannels;
   const length = buffer.length;

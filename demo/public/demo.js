@@ -6,19 +6,22 @@ import {
 } from "/dist/index.js";
 import { HEIGHT, WIDTH, paintAvatar, sceneFromBlock } from "/lib/avatar-scene.js";
 import { canvasGfx } from "/lib/canvas-gfx.js";
-import { stubLlm } from "/lib/llm-stub.js";
 import {
   BLOCK_MS,
   WINDOW_SAMPLES,
   downsampleTo16k,
   floatsToPcm16,
   mixToMono,
+  pcm16ToFloat,
 } from "/lib/pcm.js";
+import { encodePcm16Wav } from "/lib/wav.js";
 
 const canvas = document.querySelector("#avatar");
 const statusEl = document.querySelector("#status");
 const blockEl = document.querySelector("#block");
 const llmEl = document.querySelector("#llm");
+const userEl = document.querySelector("#user-text");
+const replyEl = document.querySelector("#reply-text");
 const playButton = document.querySelector("#play-fixture");
 const micButton = document.querySelector("#use-mic");
 const stopButton = document.querySelector("#stop");
@@ -32,10 +35,8 @@ if (ctx === null) {
 }
 const gfx = canvasGfx(ctx);
 
-const llm = stubLlm("unused");
-llmEl.textContent = llm.enabled ? (llm.text ?? "") : llm.reason;
-
 let run = null;
+let live = null;
 
 playButton.addEventListener("click", () => {
   void startFixture();
@@ -44,7 +45,7 @@ micButton.addEventListener("click", () => {
   void startMic();
 });
 stopButton.addEventListener("click", () => {
-  stopRun();
+  void stopAndTalk();
 });
 continuityButton.addEventListener("click", () => {
   try {
@@ -56,50 +57,42 @@ continuityButton.addEventListener("click", () => {
 });
 
 drawIdle();
+void loadStatus();
 
-async function startFixture() {
-  stopRun();
-  try {
-    await startFixtureUnsafe();
-  } catch (error) {
-    stopRun(error instanceof Error ? error.message : "fixture failed");
+async function loadStatus() {
+  const response = await fetch("/api/status");
+  live = await response.json();
+  if (live?.enabled) {
+    llmEl.textContent = `${live.model} → ${live.backend} (${live.voice})`;
+    statusEl.textContent = "idle. Play fixture or use mic. Tater speaks the reply.";
+  } else {
+    llmEl.textContent = "OPENAI_API_KEY missing on server";
+    statusEl.textContent = "idle. Conversation needs OPENAI_API_KEY.";
   }
 }
 
-async function startFixtureUnsafe() {
-  const audio = new AudioContext();
-  const response = await fetch("/fixture.wav");
-  if (!response.ok) {
-    throw new Error("fixture.wav missing");
+async function startFixture() {
+  await abortRun();
+  try {
+    statusEl.textContent = "sending fixture as user speech";
+    const wav = await fetch("/fixture.wav").then((res) => {
+      if (!res.ok) {
+        throw new Error("fixture.wav missing");
+      }
+      return res.arrayBuffer();
+    });
+    await converse(new Blob([wav], { type: "audio/wav" }));
+  } catch (error) {
+    statusEl.textContent = error instanceof Error ? error.message : "fixture failed";
   }
-  const bytes = await response.arrayBuffer();
-  const decoded = await audio.decodeAudioData(bytes.slice(0));
-  const pcm = floatsToPcm16(downsampleTo16k(mixToMono(decoded), decoded.sampleRate));
-  const source = audio.createBufferSource();
-  source.buffer = decoded;
-  source.connect(audio.destination);
-  await audio.resume();
-  const session = openSession({ audioIn: "fixture", videoOut: "avatar" });
-  run = {
-    kind: "fixture",
-    audio,
-    source,
-    session,
-    timer: 0,
-    stopped: false,
-    windowsEmitted: 0,
-  };
-  statusEl.textContent = "playing fixture through ingestAudioChunk";
-  source.start();
-  pumpPcm(run, pcm, audio.currentTime);
 }
 
 async function startMic() {
-  stopRun();
+  await abortRun();
   try {
     await startMicUnsafe();
   } catch (error) {
-    stopRun(error instanceof Error ? error.message : "mic failed");
+    statusEl.textContent = error instanceof Error ? error.message : "mic failed";
   }
 }
 
@@ -109,7 +102,6 @@ async function startMicUnsafe() {
     video: false,
   });
   const audio = new AudioContext();
-  const session = openSession({ audioIn: "mic", videoOut: "avatar" });
   const workletUrl = URL.createObjectURL(
     new Blob(
       [
@@ -140,72 +132,113 @@ registerProcessor("tap-mic", TapMic);`,
     if (run === null || run.kind !== "mic") {
       return;
     }
-    const chunk = floatsToPcm16(downsampleTo16k(event.data, audio.sampleRate));
-    pending.push(chunk);
+    pending.push(floatsToPcm16(downsampleTo16k(event.data, audio.sampleRate)));
   };
-  run = { kind: "mic", audio, stream, session, pending, timer: 0, stopped: false };
-  statusEl.textContent = "mic open; chunks ingest every 40ms";
-  tickMic(run);
+  run = { kind: "mic", audio, stream, pending, stopped: false };
+  statusEl.textContent = "listening. Stop to send the turn. Mouth waits for Tater.";
+}
+
+async function stopAndTalk() {
+  if (run === null || run.kind !== "mic") {
+    await abortRun();
+    return;
+  }
+  const pending = run.pending;
+  await abortRun();
+  const pcm = concatPcm(pending);
+  if (pcm.length === 0) {
+    statusEl.textContent = "no mic audio";
+    return;
+  }
+  try {
+    statusEl.textContent = "sending your speech";
+    await converse(new Blob([encodePcm16Wav(pcm, 16_000)], { type: "audio/wav" }));
+  } catch (error) {
+    statusEl.textContent = error instanceof Error ? error.message : "talk failed";
+  }
+}
+
+async function converse(wavBlob) {
+  const response = await fetch("/api/talk", { method: "POST", body: wavBlob });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "talk failed");
+  }
+  userEl.textContent = payload.userText || "(unrecognized)";
+  replyEl.textContent = payload.replyText || "(no transcript)";
+  const pcm = pcmFromBase64(payload.wavBase64);
+  statusEl.textContent = "Tater speaking";
+  await playReply(pcm);
+  statusEl.textContent = "reply finished";
+}
+
+async function playReply(pcm) {
+  const audio = new AudioContext();
+  await audio.resume();
+  const buffer = audio.createBuffer(1, pcm.length, 16_000);
+  buffer.getChannelData(0).set(pcm16ToFloat(pcm));
+  const source = audio.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audio.destination);
+  const session = openSession({ audioIn: "reply", videoOut: "avatar" });
+  run = {
+    kind: "reply",
+    audio,
+    source,
+    session,
+    timer: 0,
+    stopped: false,
+    windowsEmitted: 0,
+  };
+  source.start();
+  await pumpPcm(run, pcm, audio.currentTime);
 }
 
 function pumpPcm(current, pcm, startedAt) {
-  if (run !== current || current.stopped) {
-    return;
-  }
-  const elapsedMs = (current.audio.currentTime - startedAt) * 1000;
-  const windowsDue = Math.floor(elapsedMs / BLOCK_MS) + 1;
-  while (current.windowsEmitted < windowsDue) {
-    const offset = current.windowsEmitted * WINDOW_SAMPLES;
-    if (offset >= pcm.length) {
-      stopRun("fixture finished");
-      return;
-    }
-    ingestAudioChunk(current.session, pcm.subarray(offset, offset + WINDOW_SAMPLES));
-    emitAndDraw(current.session);
-    current.windowsEmitted += 1;
-  }
-  current.timer = window.setTimeout(() => pumpPcm(current, pcm, startedAt), BLOCK_MS / 2);
+  return new Promise((resolve) => {
+    const tick = () => {
+      if (run !== current || current.stopped) {
+        resolve();
+        return;
+      }
+      const elapsedMs = (current.audio.currentTime - startedAt) * 1000;
+      const windowsDue = Math.floor(elapsedMs / BLOCK_MS) + 1;
+      while (current.windowsEmitted < windowsDue) {
+        const offset = current.windowsEmitted * WINDOW_SAMPLES;
+        if (offset >= pcm.length) {
+          void current.audio.close();
+          run = null;
+          resolve();
+          return;
+        }
+        ingestAudioChunk(current.session, pcm.subarray(offset, offset + WINDOW_SAMPLES));
+        emitAndDraw(current.session);
+        current.windowsEmitted += 1;
+      }
+      current.timer = window.setTimeout(tick, BLOCK_MS / 2);
+    };
+    tick();
+  });
 }
 
-function tickMic(current) {
-  if (run !== current || current.stopped) {
+async function abortRun() {
+  if (run === null) {
     return;
   }
-  const taken = takeWindow(current.pending);
-  if (taken !== null) {
-    ingestAudioChunk(current.session, taken);
-  }
-  emitAndDraw(current.session);
-  current.timer = window.setTimeout(() => tickMic(current), BLOCK_MS);
-}
-
-function takeWindow(pending) {
-  let total = 0;
-  for (const part of pending) {
-    total += part.length;
-  }
-  if (total < WINDOW_SAMPLES) {
-    return null;
-  }
-  const window = new Int16Array(WINDOW_SAMPLES);
-  let filled = 0;
-  while (filled < WINDOW_SAMPLES) {
-    const head = pending[0];
-    if (head === undefined) {
-      break;
+  const current = run;
+  current.stopped = true;
+  window.clearTimeout(current.timer);
+  if (current.kind === "reply") {
+    try {
+      current.source.stop();
+    } catch {
     }
-    const need = WINDOW_SAMPLES - filled;
-    if (head.length <= need) {
-      window.set(head, filled);
-      filled += head.length;
-      pending.shift();
-    } else {
-      window.set(head.subarray(0, need), filled);
-      pending[0] = head.subarray(need);
-      filled += need;
-    }
+    void current.audio.close();
+  } else if (current.kind === "mic") {
+    current.stream.getTracks().forEach((track) => track.stop());
+    void current.audio.close();
   }
-  return window;
+  run = null;
 }
 
 function emitAndDraw(session) {
@@ -214,29 +247,60 @@ function emitAndDraw(session) {
   blockEl.textContent = JSON.stringify(block);
 }
 
-function stopRun(message) {
-  if (run === null) {
-    statusEl.textContent = message ?? "idle";
-    return;
+function concatPcm(parts) {
+  let total = 0;
+  for (const part of parts) {
+    total += part.length;
   }
-  window.clearTimeout(run.timer);
-  run.stopped = true;
-  if (run.kind === "fixture") {
-    try {
-      run.source.stop();
-    } catch {
+  const out = new Int16Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function pcmFromBase64(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const wavBytes = bytes.buffer;
+  return decodeBrowserWav(wavBytes);
+}
+
+function decodeBrowserWav(buffer) {
+  const view = new DataView(buffer);
+  let offset = 12;
+  let dataOffset = -1;
+  let dataBytes = 0;
+  while (offset + 8 <= buffer.byteLength) {
+    const id = String.fromCharCode(
+      view.getUint8(offset),
+      view.getUint8(offset + 1),
+      view.getUint8(offset + 2),
+      view.getUint8(offset + 3),
+    );
+    const size = view.getUint32(offset + 4, true);
+    const start = offset + 8;
+    if (id === "data") {
+      dataOffset = start;
+      dataBytes = size;
+      break;
     }
-    void run.audio.close();
-  } else {
-    run.stream.getTracks().forEach((track) => track.stop());
-    void run.audio.close();
+    offset = start + size + (size % 2);
   }
-  run = null;
-  statusEl.textContent = message ?? "stopped";
+  if (dataOffset < 0) {
+    throw new Error("reply wav");
+  }
+  return new Int16Array(buffer.slice(dataOffset, dataOffset + dataBytes));
 }
 
 function drawIdle() {
   const session = openSession({ audioIn: "idle", videoOut: "avatar" });
   emitAndDraw(session);
-  statusEl.textContent = "idle. Play fixture or use mic.";
+  userEl.textContent = "—";
+  replyEl.textContent = "—";
 }

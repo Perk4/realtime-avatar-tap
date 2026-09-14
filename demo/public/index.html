@@ -88,9 +88,10 @@
     <main>
       <h1>Tater, the 4-primitive potato</h1>
       <p class="lede">
-        Speak or play the fixture WAV. Chunks hit
-        <code>openSession</code>, <code>ingestAudioChunk</code>, and
-        <code>emitAvatarBlock</code>. The canvas follows lip and pose. No LLM key.
+        Speak or play the fixture WAV. Tater answers with
+        <code>gpt-live-1</code>. Only the <strong>reply</strong> hits
+        <code>ingestAudioChunk</code> and <code>emitAvatarBlock</code>.
+        The mouth does not mirror the caller.
       </p>
       <canvas id="avatar" width="640" height="360" aria-label="Potato avatar"></canvas>
       <div class="row">
@@ -102,9 +103,13 @@
       <dl>
         <dt>status</dt>
         <dd id="status">loading</dd>
+        <dt>you said</dt>
+        <dd id="user-text">—</dd>
+        <dt>Tater said</dt>
+        <dd id="reply-text">—</dd>
         <dt>last block</dt>
         <dd id="block">—</dd>
-        <dt>LLM stub</dt>
+        <dt>live models</dt>
         <dd id="llm">—</dd>
       </dl>
     </main>
