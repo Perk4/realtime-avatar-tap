@@ -75,9 +75,9 @@ async function startFixture() {
   await abortRun();
   try {
     statusEl.textContent = "sending fixture as user speech";
-    const wav = await fetch("/fixture.wav").then((res) => {
+    const wav = await fetch("/speech-fixture.wav").then((res) => {
       if (!res.ok) {
-        throw new Error("fixture.wav missing");
+        throw new Error("speech-fixture.wav missing");
       }
       return res.arrayBuffer();
     });

@@ -27,7 +27,7 @@ npm install
 npm run demo
 ```
 
-Open http://127.0.0.1:4173. **Play fixture** sends the fixture as user audio and plays Tater's reply (needs the key; works without a mic). **Use mic**, then **Stop**, to send a live turn. Mic needs localhost or HTTPS.
+Open http://127.0.0.1:4173. **Play fixture** sends `speech-fixture.wav` as user audio and plays Tater's reply (needs the key; works without a mic). **Use mic**, then **Stop**, to send a live turn. Mic needs localhost or HTTPS. `fixture.wav` is still the synthetic RMS ladder for tap tests.
 
 Keep the key on the Cloud Agent environment as runtime secret `OPENAI_API_KEY`. Do not commit it. Local override: `.env.local` (gitignored) is not read automatically; export the variable in the shell that runs `npm run demo`.
 

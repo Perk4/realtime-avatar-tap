@@ -10,7 +10,8 @@ const CHUNK_SAMPLES = 640;
 const SILENCE_MS = 900;
 const REPLY_IDLE_MS = 1600;
 const START_TIMEOUT_MS = 12_000;
-const REPLY_TIMEOUT_MS = 25_000;
+const REPLY_TIMEOUT_MS = 45_000;
+const ENERGY_RMS = 0.01;
 
 export function liveConfig() {
   return {
@@ -56,7 +57,7 @@ export async function talkTurn(pcm16k, options = {}) {
       session: {
         model: cfg.model,
         instructions:
-          "You are Tater, a talking potato on a canvas. Keep replies to one or two spoken sentences. Be warm and a little absurd. Do not mention APIs, models, or keys.",
+          "You are Tater, a talking potato on a canvas. After the caller finishes speaking, always reply out loud in one or two short sentences. Be warm and a little absurd. Do not mention APIs, models, or keys.",
         audio: {
           format: { type: "audio/pcm", rate: LIVE_RATE_HZ },
           output: { voice: cfg.voice },
@@ -76,7 +77,8 @@ export async function talkTurn(pcm16k, options = {}) {
   try {
     await sendPaced(ws, pcm16k, pace);
     await sendSilence(ws, pace);
-    const outputPcm = await reply;
+    reply.arm();
+    const outputPcm = await reply.promise;
     await closeSession(ws);
     return {
       pcm: outputPcm,
@@ -136,7 +138,10 @@ function onceType(ws, type, timeoutMs, eventTypes) {
 }
 
 function collectReply(ws, eventTypes, inputParts, outputParts, chunks) {
-  return new Promise((resolve, reject) => {
+  let arm = () => {};
+  const promise = new Promise((resolve, reject) => {
+    let armed = false;
+    let energySamples = 0;
     let idle = null;
     const timer = setTimeout(() => {
       cleanup();
@@ -152,13 +157,31 @@ function collectReply(ws, eventTypes, inputParts, outputParts, chunks) {
       ws.off("error", onError);
     };
 
+    const scheduleIdle = () => {
+      if (!armed || energySamples === 0) {
+        return;
+      }
+      if (idle !== null) {
+        clearTimeout(idle);
+      }
+      idle = setTimeout(finish, REPLY_IDLE_MS);
+    };
+
     const finish = () => {
       cleanup();
-      if (chunks.length === 0) {
+      if (energySamples === 0) {
         reject(new Error("no reply audio"));
         return;
       }
       resolve(concatPcm(chunks));
+    };
+
+    arm = () => {
+      if (armed) {
+        return;
+      }
+      armed = true;
+      scheduleIdle();
     };
 
     const onError = (error) => {
@@ -177,24 +200,31 @@ function collectReply(ws, eventTypes, inputParts, outputParts, chunks) {
         reject(new Error(errorMessage(event)));
         return;
       }
-      if (event.type === "session.input_transcript.delta" && typeof event.delta === "string") {
-        inputParts.push(event.delta);
+      const inputText = transcriptText(event, "session.input_transcript.delta");
+      if (inputText !== "") {
+        inputParts.push(inputText);
       }
-      if (event.type === "session.output_transcript.delta" && typeof event.delta === "string") {
-        outputParts.push(event.delta);
+      const outputText = transcriptText(event, "session.output_transcript.delta");
+      if (outputText !== "") {
+        outputParts.push(outputText);
       }
       if (event.type === "session.output_audio.delta" && typeof event.delta === "string") {
-        chunks.push(pcmFromBase64(event.delta));
-        if (idle !== null) {
-          clearTimeout(idle);
+        const chunk = pcmFromBase64(event.delta);
+        chunks.push(chunk);
+        if (chunkRms(chunk) >= ENERGY_RMS) {
+          energySamples += chunk.length;
+          scheduleIdle();
         }
-        idle = setTimeout(finish, REPLY_IDLE_MS);
+      }
+      if (event.type === "session.closed" && armed) {
+        finish();
       }
     };
 
     ws.on("message", onMessage);
     ws.once("error", onError);
   });
+  return { promise, arm };
 }
 
 async function sendPaced(ws, pcm, pace) {
@@ -209,10 +239,7 @@ async function sendPaced(ws, pcm, pace) {
 
 async function sendSilence(ws, pace) {
   const quiet = new Int16Array(Math.round((SILENCE_MS / 1000) * LIVE_RATE_HZ));
-  sendAudio(ws, quiet);
-  if (pace) {
-    await sleep(SILENCE_MS);
-  }
+  await sendPaced(ws, quiet, pace);
 }
 
 function sendAudio(ws, pcm) {
@@ -262,6 +289,37 @@ function parseEvent(raw) {
     return null;
   }
   return null;
+}
+
+function transcriptText(event, type) {
+  if (event.type !== type) {
+    return "";
+  }
+  if (typeof event.delta === "string") {
+    return event.delta;
+  }
+  if (event.delta && typeof event.delta === "object" && typeof event.delta.text === "string") {
+    return event.delta.text;
+  }
+  if (typeof event.transcript === "string") {
+    return event.transcript;
+  }
+  if (typeof event.text === "string") {
+    return event.text;
+  }
+  return "";
+}
+
+export function chunkRms(pcm) {
+  if (!(pcm instanceof Int16Array) || pcm.length === 0) {
+    return 0;
+  }
+  let sum = 0;
+  for (let i = 0; i < pcm.length; i++) {
+    const sample = (pcm[i] ?? 0) / 32768;
+    sum += sample * sample;
+  }
+  return Math.sqrt(sum / pcm.length);
 }
 
 function errorMessage(event) {

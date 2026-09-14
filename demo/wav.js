@@ -57,7 +57,7 @@ export function decodePcm16Wav(bytes) {
       }
     } else if (id === "data") {
       dataOffset = start;
-      dataBytes = size;
+      dataBytes = Math.min(size, buffer.byteLength - start);
       break;
     }
     offset = start + size + (size % 2);
