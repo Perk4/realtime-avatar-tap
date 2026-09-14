@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>realtime-avatar-tap potato demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0e1512;
+        --ink: #e7f0e4;
+        --muted: #9bb39a;
+        --accent: #e2b15a;
+        --line: #2a3b32;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Georgia, "Iowan Old Style", serif;
+        background: radial-gradient(1200px 600px at 50% -10%, #24352c, var(--bg));
+        color: var(--ink);
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      h1 {
+        font-size: 1.6rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 8px;
+      }
+      p.lede {
+        margin: 0 0 24px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #17211c;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 16px 0;
+      }
+      button {
+        font: 600 0.95rem ui-sans-serif, system-ui, sans-serif;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #1c2922;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #1a1408;
+        border-color: #c9963d;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 8.5rem 1fr;
+        gap: 6px 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      dt {
+        color: var(--accent);
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tater, the 4-primitive potato</h1>
+      <p class="lede">
+        Speak or play the fixture WAV. Chunks hit
+        <code>openSession</code>, <code>ingestAudioChunk</code>, and
+        <code>emitAvatarBlock</code>. The canvas follows lip and pose. No LLM key.
+      </p>
+      <canvas id="avatar" width="640" height="360" aria-label="Potato avatar"></canvas>
+      <div class="row">
+        <button class="primary" id="play-fixture" type="button">Play fixture</button>
+        <button id="use-mic" type="button">Use mic</button>
+        <button id="stop" type="button">Stop</button>
+        <button id="assert-continuous" type="button">assertContinuous</button>
+      </div>
+      <dl>
+        <dt>status</dt>
+        <dd id="status">loading</dd>
+        <dt>last block</dt>
+        <dd id="block">—</dd>
+        <dt>LLM stub</dt>
+        <dd id="llm">—</dd>
+      </dl>
+    </main>
+    <script type="module" src="./demo.js"></script>
+  </body>
+</html>
