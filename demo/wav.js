@@ -25,7 +25,7 @@ export function encodePcm16Wav(pcm, sampleRate) {
   writeAscii(view, 36, "data");
   view.setUint32(40, dataBytes, true);
   new Int16Array(buffer, HEADER_BYTES).set(pcm);
-  return Buffer.from(buffer);
+  return new Uint8Array(buffer);
 }
 
 export function decodePcm16Wav(bytes) {
@@ -57,7 +57,7 @@ export function decodePcm16Wav(bytes) {
       }
     } else if (id === "data") {
       dataOffset = start;
-      dataBytes = size;
+      dataBytes = Math.min(size, buffer.byteLength - start);
       break;
     }
     offset = start + size + (size % 2);
