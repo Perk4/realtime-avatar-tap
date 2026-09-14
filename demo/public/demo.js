@@ -4,8 +4,10 @@ import {
   ingestAudioChunk,
   openSession,
 } from "/dist/index.js";
-import { HEIGHT, WIDTH, paintAvatar, sceneFromBlock } from "/lib/avatar-scene.js";
+import { HEIGHT, WIDTH } from "/lib/avatar-scene.js";
 import { canvasGfx } from "/lib/canvas-gfx.js";
+import { CHARACTERS, composeScene, paintCharacter, parseCharacter } from "/lib/characters.js";
+import { createGraph, tickGraph, triggerGesture } from "/lib/anim-graph.js";
 import {
   BLOCK_MS,
   WINDOW_SAMPLES,
@@ -27,6 +29,9 @@ const playButton = document.querySelector("#play-fixture");
 const micButton = document.querySelector("#use-mic");
 const stopButton = document.querySelector("#stop");
 const continuityButton = document.querySelector("#assert-continuous");
+const characterRow = document.querySelector("#characters");
+const nodButton = document.querySelector("#gesture-nod");
+const glassesButton = document.querySelector("#gesture-glasses");
 
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
@@ -38,6 +43,10 @@ const gfx = canvasGfx(ctx);
 
 let run = null;
 let live = null;
+let character = parseCharacter(new URLSearchParams(location.search).get("character"));
+let graph = createGraph();
+let lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+const wallOrigin = performance.now();
 
 duplexButton.addEventListener("click", () => {
   void startDuplex();
@@ -59,9 +68,19 @@ continuityButton.addEventListener("click", () => {
     statusEl.textContent = error instanceof Error ? error.message : "assertContinuous failed";
   }
 });
+nodButton.addEventListener("click", () => {
+  triggerGesture(graph, "nod", nowMs());
+  paintFrame(lastBlock, nowMs());
+});
+glassesButton.addEventListener("click", () => {
+  triggerGesture(graph, "glasses", nowMs());
+  paintFrame(lastBlock, nowMs());
+});
+wireCharacterButtons();
 
 drawIdle();
 void loadStatus();
+requestAnimationFrame(idleTick);
 
 async function loadStatus() {
   const response = await fetch("/api/status");
@@ -442,9 +461,62 @@ async function abortRun() {
 }
 
 function emitAndDraw(session) {
-  const block = emitAvatarBlock(session);
-  paintAvatar(gfx, sceneFromBlock(block));
-  blockEl.textContent = JSON.stringify(block);
+  lastBlock = emitAvatarBlock(session);
+  paintFrame(lastBlock, nowMs());
+}
+
+function paintFrame(block, clockMs) {
+  const tick = tickGraph(graph, block, clockMs);
+  paintCharacter(character, gfx, composeScene(block, tick));
+  blockEl.textContent = JSON.stringify({
+    t0Ms: block.t0Ms,
+    durationMs: block.durationMs,
+    lip: block.lip,
+    pose: block.pose,
+    gesture: tick.gesture,
+    character,
+  });
+}
+
+function nowMs() {
+  return performance.now() - wallOrigin;
+}
+
+function idleTick() {
+  requestAnimationFrame(idleTick);
+  if (run !== null && run.kind !== "mic") {
+    return;
+  }
+  paintFrame(lastBlock, nowMs());
+}
+
+function wireCharacterButtons() {
+  for (const item of CHARACTERS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.character = item.id;
+    button.textContent = item.label;
+    button.addEventListener("click", () => {
+      setCharacter(item.id);
+    });
+    characterRow.append(button);
+  }
+  markCharacter();
+}
+
+function setCharacter(id) {
+  character = parseCharacter(id);
+  const url = new URL(location.href);
+  url.searchParams.set("character", character);
+  history.replaceState({}, "", url);
+  markCharacter();
+  paintFrame(lastBlock, nowMs());
+}
+
+function markCharacter() {
+  for (const button of characterRow.querySelectorAll("button")) {
+    button.classList.toggle("primary", button.dataset.character === character);
+  }
 }
 
 function micWorkletUrl() {

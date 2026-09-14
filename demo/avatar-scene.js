@@ -1,3 +1,5 @@
+import { paintHud } from "./paint-hud.js";
+
 export const WIDTH = 640;
 export const HEIGHT = 360;
 
@@ -27,10 +29,10 @@ export function paintAvatar(g, scene) {
   g.fillRect(24, 24, WIDTH - 48, HEIGHT - 48, "#101813");
 
   const cx = WIDTH / 2;
-  const cy = HEIGHT * 0.46 + scene.bounce;
+  const cy = HEIGHT * 0.46 + scene.bounce + (scene.idleBreathe ?? 0);
   g.save();
   g.translate(cx, cy);
-  g.rotate(scene.tilt);
+  g.rotate(scene.tilt + (scene.nod ?? 0));
 
   g.fillEllipse(18, 28, 132, 158, "#c48a3a");
   g.fillEllipse(0, 0, 124, 150, "#e2b15a");
@@ -49,14 +51,7 @@ export function paintAvatar(g, scene) {
   }
 
   g.restore();
-
-  g.fillRect(24, HEIGHT - 64, WIDTH - 48, 40, "#0c120f");
-  g.fillText(
-    `t0 ${scene.t0Ms}ms   lip ${scene.lip}   pose ${scene.pose}`,
-    40,
-    HEIGHT - 38,
-    "#d7e6d4",
-  );
+  paintHud(g, scene, "   tater");
 }
 
 function drawEye(g, x, y, scene) {

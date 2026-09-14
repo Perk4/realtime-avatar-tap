@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>realtime-avatar-tap potato demo</title>
+    <title>realtime-avatar-tap character demo</title>
     <style>
       :root {
         color-scheme: dark;
@@ -86,22 +86,27 @@
   </head>
   <body>
     <main>
-      <h1>Tater, the 4-primitive potato</h1>
+      <h1>Tater, plus character prototypes</h1>
       <p class="lede">
         <strong>Live duplex</strong> is in-page WebRTC: speak and hear Tater
         at the same time. <strong>Play fixture</strong> / <strong>Use mic</strong>
         still send one WAV turn through <code>POST /api/talk</code>.
-        Only Tater's audio hits <code>ingestAudioChunk</code> /
+        Only reply audio hits <code>ingestAudioChunk</code> /
         <code>emitAvatarBlock</code>. The mouth does not mirror the caller.
+        Switch characters below. Nod and glasses ride an animation graph
+        next to the lip blocks.
       </p>
-      <canvas id="avatar" width="640" height="360" aria-label="Potato avatar"></canvas>
+      <canvas id="avatar" width="640" height="360" aria-label="Avatar"></canvas>
       <audio id="live-out" autoplay playsinline hidden></audio>
+      <div class="row" id="characters"></div>
       <div class="row">
         <button class="primary" id="live-duplex" type="button">Live duplex</button>
         <button id="play-fixture" type="button">Play fixture</button>
         <button id="use-mic" type="button">Use mic</button>
         <button id="stop" type="button">Stop</button>
         <button id="assert-continuous" type="button">assertContinuous</button>
+        <button id="gesture-nod" type="button">Nod</button>
+        <button id="gesture-glasses" type="button">Glasses</button>
       </div>
       <dl>
         <dt>status</dt>
