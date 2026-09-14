@@ -14,6 +14,26 @@ Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](ht
 
 4. **`assertContinuous()`.** Opens one session with labels `mic` and `avatar`, ingests one full window, emits, skips the next ingest, and emits again. Throws `ContinuityError` if the second emit throws or the clock does not advance.
 
+## Local demo
+
+Static host. Same four primitives. Canvas potato (Tater) follows `lip` and `pose`. LLM is a stub. No keys.
+
+```sh
+npm install
+npm run demo
+```
+
+Open http://127.0.0.1:4173. **Play fixture** works without a mic (CI and cloud VMs). **Use mic** needs localhost or HTTPS.
+
+Recorded artifact (audio + avatar):
+
+- [`artifacts/potato-avatar-demo.mp4`](artifacts/potato-avatar-demo.mp4)
+- Poster: [`artifacts/potato-avatar-demo.jpg`](artifacts/potato-avatar-demo.jpg)
+
+![Tater mid-talk](artifacts/potato-avatar-demo.jpg)
+
+Regenerate the fixture WAV or the recording with `npm run demo:fixture` and `npm run demo:record`. Track status in [ROADMAP.md](ROADMAP.md).
+
 ## Not in scope
 
 A LemonSlice clone, GPU rendering, and live WebRTC.
@@ -27,4 +47,4 @@ npm install
 npm test
 ```
 
-`npm test` builds `dist/` then runs `node --experimental-strip-types --test src/*.test.ts`. Consumers import compiled JS from `dist/` (`main` / `exports`), not TypeScript source.
+`npm test` builds `dist/` then runs `node --experimental-strip-types --test src/*.test.ts demo/*.test.js`. Consumers import compiled JS from `dist/` (`main` / `exports`), not TypeScript source.
