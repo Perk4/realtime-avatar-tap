@@ -73,6 +73,6 @@ What a later graph can add without changing the tap: clip names, hold and blend,
 
 `audioIn: "reply"` is a label. The tap does not enforce who wrote the PCM. The demo must not call `ingestAudioChunk` with mic samples. Duplex taps the remote track only.
 
-Do not use `Date.now` inside a Convex query. This graph is page and test code.
+The page graph clocks from `performance.now`, not `block.t0Ms`. Auto-nod only starts if the last block is `rest`. After a WAV reply whose last window is still `talk`, idle rAF will not nod until a later rest block. The Nod button still works.
 
 Public package exports stay the four primitives. `src/avatar-tap.test.ts` asserts those names.
