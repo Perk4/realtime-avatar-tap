@@ -88,14 +88,17 @@
     <main>
       <h1>Tater, the 4-primitive potato</h1>
       <p class="lede">
-        Speak or play the speech fixture. Tater answers with
-        <code>gpt-live-1</code>. Only the <strong>reply</strong> hits
-        <code>ingestAudioChunk</code> and <code>emitAvatarBlock</code>.
-        The mouth does not mirror the caller.
+        <strong>Live duplex</strong> is in-page WebRTC: speak and hear Tater
+        at the same time. <strong>Play fixture</strong> / <strong>Use mic</strong>
+        still send one WAV turn through <code>POST /api/talk</code>.
+        Only Tater's audio hits <code>ingestAudioChunk</code> /
+        <code>emitAvatarBlock</code>. The mouth does not mirror the caller.
       </p>
       <canvas id="avatar" width="640" height="360" aria-label="Potato avatar"></canvas>
+      <audio id="live-out" autoplay playsinline hidden></audio>
       <div class="row">
-        <button class="primary" id="play-fixture" type="button">Play fixture</button>
+        <button class="primary" id="live-duplex" type="button">Live duplex</button>
+        <button id="play-fixture" type="button">Play fixture</button>
         <button id="use-mic" type="button">Use mic</button>
         <button id="stop" type="button">Stop</button>
         <button id="assert-continuous" type="button">assertContinuous</button>

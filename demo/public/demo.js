@@ -11,17 +11,18 @@ import {
   WINDOW_SAMPLES,
   downsampleTo16k,
   floatsToPcm16,
-  mixToMono,
   pcm16ToFloat,
 } from "/lib/pcm.js";
 import { encodePcm16Wav } from "/lib/wav.js";
 
 const canvas = document.querySelector("#avatar");
+const liveOut = document.querySelector("#live-out");
 const statusEl = document.querySelector("#status");
 const blockEl = document.querySelector("#block");
 const llmEl = document.querySelector("#llm");
 const userEl = document.querySelector("#user-text");
 const replyEl = document.querySelector("#reply-text");
+const duplexButton = document.querySelector("#live-duplex");
 const playButton = document.querySelector("#play-fixture");
 const micButton = document.querySelector("#use-mic");
 const stopButton = document.querySelector("#stop");
@@ -38,6 +39,9 @@ const gfx = canvasGfx(ctx);
 let run = null;
 let live = null;
 
+duplexButton.addEventListener("click", () => {
+  void startDuplex();
+});
 playButton.addEventListener("click", () => {
   void startFixture();
 });
@@ -45,7 +49,7 @@ micButton.addEventListener("click", () => {
   void startMic();
 });
 stopButton.addEventListener("click", () => {
-  void stopAndTalk();
+  void stopRun();
 });
 continuityButton.addEventListener("click", () => {
   try {
@@ -63,12 +67,183 @@ async function loadStatus() {
   const response = await fetch("/api/status");
   live = await response.json();
   if (live?.enabled) {
-    llmEl.textContent = `${live.model} → ${live.backend} (${live.voice})`;
-    statusEl.textContent = "idle. Play fixture or use mic. Tater speaks the reply.";
+    llmEl.textContent = `${live.model} → ${live.backend} (${live.voice}, ${live.duplex ?? "webrtc"})`;
+    statusEl.textContent =
+      "idle. Live duplex for two-way audio, or Play fixture / Use mic for one WAV turn.";
   } else {
     llmEl.textContent = "OPENAI_API_KEY missing on server";
     statusEl.textContent = "idle. Conversation needs OPENAI_API_KEY.";
   }
+}
+
+async function startDuplex() {
+  await abortRun();
+  userEl.textContent = "";
+  replyEl.textContent = "";
+  statusEl.textContent = "connecting WebRTC duplex";
+  const session = openSession({ audioIn: "reply", videoOut: "avatar" });
+  const audio = new AudioContext();
+  const peer = new RTCPeerConnection();
+  const current = {
+    kind: "duplex",
+    audio,
+    peer,
+    session,
+    leftover: new Int16Array(0),
+    events: null,
+    microphone: null,
+    closeTimer: 0,
+    stopped: false,
+    ready: false,
+    finalized: false,
+  };
+  run = current;
+  try {
+    await startDuplexUnsafe(current);
+  } catch (error) {
+    statusEl.textContent = error instanceof Error ? error.message : "duplex failed";
+    await abortRun();
+  }
+}
+
+async function startDuplexUnsafe(current) {
+  current.peer.addEventListener("track", (event) => {
+    if (run !== current || current.stopped) {
+      return;
+    }
+    const stream = new MediaStream([event.track]);
+    liveOut.srcObject = stream;
+    void liveOut.play().catch(() => {});
+    void tapRemoteStream(current, stream);
+  });
+  current.microphone = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    video: false,
+  });
+  for (const track of current.microphone.getAudioTracks()) {
+    current.peer.addTrack(track, current.microphone);
+  }
+  current.events = current.peer.createDataChannel("oai-events");
+  current.events.addEventListener("message", (event) => {
+    onDuplexEvent(current, event.data);
+  });
+  current.events.addEventListener("close", () => {
+    if (run !== current || current.finalized) {
+      return;
+    }
+    statusEl.textContent = "duplex disconnected";
+    void abortRun();
+  });
+  const offer = await current.peer.createOffer();
+  await current.peer.setLocalDescription(offer);
+  await waitForIce(current.peer);
+  const sdp = current.peer.localDescription?.sdp;
+  if (!sdp) {
+    throw new Error("missing local SDP offer");
+  }
+  const response = await fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sdp }),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? "session failed");
+  }
+  if (typeof payload.transport?.sdp !== "string") {
+    throw new Error("missing remote SDP");
+  }
+  await current.peer.setRemoteDescription({
+    type: "answer",
+    sdp: payload.transport.sdp,
+  });
+  await current.audio.resume();
+}
+
+function onDuplexEvent(current, raw) {
+  if (run !== current || current.stopped) {
+    return;
+  }
+  const event = parseLiveEvent(raw);
+  if (event === null) {
+    return;
+  }
+  if (event.type === "session.started") {
+    current.ready = true;
+    statusEl.textContent = "duplex live. Speak anytime. Stop to hang up.";
+    return;
+  }
+  if (event.type === "session.closed") {
+    current.finalized = true;
+    statusEl.textContent = "duplex ended";
+    void abortRun();
+    return;
+  }
+  if (event.type === "error") {
+    statusEl.textContent = liveErrorMessage(event);
+    return;
+  }
+  const inputText = transcriptDelta(event, "session.input_transcript.delta");
+  if (inputText !== "") {
+    userEl.textContent += inputText;
+  }
+  const outputText = transcriptDelta(event, "session.output_transcript.delta");
+  if (outputText !== "") {
+    replyEl.textContent += outputText;
+  }
+}
+
+async function tapRemoteStream(current, stream) {
+  const workletUrl = micWorkletUrl();
+  await current.audio.audioWorklet.addModule(workletUrl);
+  URL.revokeObjectURL(workletUrl);
+  const source = current.audio.createMediaStreamSource(stream);
+  const node = new AudioWorkletNode(current.audio, "tap-mic");
+  const silent = current.audio.createGain();
+  silent.gain.value = 0;
+  source.connect(node);
+  node.connect(silent);
+  silent.connect(current.audio.destination);
+  node.port.onmessage = (event) => {
+    if (run !== current || current.stopped) {
+      return;
+    }
+    const pcm = floatsToPcm16(downsampleTo16k(event.data, current.audio.sampleRate));
+    pushTapPcm(current, pcm);
+  };
+}
+
+function pushTapPcm(current, pcm) {
+  const merged = concatPcm([current.leftover, pcm]);
+  let offset = 0;
+  while (offset + WINDOW_SAMPLES <= merged.length) {
+    ingestAudioChunk(current.session, merged.subarray(offset, offset + WINDOW_SAMPLES));
+    emitAndDraw(current.session);
+    offset += WINDOW_SAMPLES;
+  }
+  current.leftover = merged.subarray(offset);
+}
+
+function waitForIce(peer) {
+  if (peer.iceGatheringState === "complete") {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      peer.removeEventListener("icegatheringstatechange", onState);
+      reject(new Error("Timed out while gathering ICE candidates"));
+    }, 10_000);
+    const onState = () => {
+      if (peer.iceGatheringState !== "complete") {
+        return;
+      }
+      clearTimeout(timer);
+      peer.removeEventListener("icegatheringstatechange", onState);
+      resolve();
+    };
+    peer.addEventListener("icegatheringstatechange", onState);
+    onState();
+  });
 }
 
 async function startFixture() {
@@ -102,21 +277,7 @@ async function startMicUnsafe() {
     video: false,
   });
   const audio = new AudioContext();
-  const workletUrl = URL.createObjectURL(
-    new Blob(
-      [
-        `class TapMic extends AudioWorkletProcessor {
-  process(inputs) {
-    const channel = inputs[0]?.[0];
-    if (channel) this.port.postMessage(channel.slice());
-    return true;
-  }
-}
-registerProcessor("tap-mic", TapMic);`,
-      ],
-      { type: "application/javascript" },
-    ),
-  );
+  const workletUrl = micWorkletUrl();
   await audio.audioWorklet.addModule(workletUrl);
   URL.revokeObjectURL(workletUrl);
   const node = new AudioWorkletNode(audio, "tap-mic");
@@ -138,7 +299,11 @@ registerProcessor("tap-mic", TapMic);`,
   statusEl.textContent = "listening. Stop to send the turn. Mouth waits for Tater.";
 }
 
-async function stopAndTalk() {
+async function stopRun() {
+  if (run !== null && run.kind === "duplex") {
+    await hangupDuplex();
+    return;
+  }
   if (run === null || run.kind !== "mic") {
     await abortRun();
     return;
@@ -156,6 +321,31 @@ async function stopAndTalk() {
   } catch (error) {
     statusEl.textContent = error instanceof Error ? error.message : "talk failed";
   }
+}
+
+async function hangupDuplex() {
+  const current = run;
+  if (current === null || current.kind !== "duplex") {
+    await abortRun();
+    return;
+  }
+  if (!current.ready || current.events === null || current.events.readyState !== "open") {
+    await abortRun();
+    return;
+  }
+  statusEl.textContent = "hanging up duplex";
+  try {
+    current.events.send(JSON.stringify({ type: "session.close" }));
+  } catch {
+    await abortRun();
+    return;
+  }
+  current.closeTimer = window.setTimeout(() => {
+    if (run === current && !current.finalized) {
+      statusEl.textContent = "duplex hangup timed out";
+      void abortRun();
+    }
+  }, 15_000);
 }
 
 async function converse(wavBlob) {
@@ -228,6 +418,7 @@ async function abortRun() {
   const current = run;
   current.stopped = true;
   window.clearTimeout(current.timer);
+  window.clearTimeout(current.closeTimer);
   if (current.kind === "reply") {
     try {
       current.source.stop();
@@ -237,6 +428,15 @@ async function abortRun() {
   } else if (current.kind === "mic") {
     current.stream.getTracks().forEach((track) => track.stop());
     void current.audio.close();
+  } else if (current.kind === "duplex") {
+    current.microphone?.getTracks().forEach((track) => track.stop());
+    try {
+      current.events?.close();
+    } catch {
+    }
+    current.peer.close();
+    liveOut.srcObject = null;
+    void current.audio.close();
   }
   run = null;
 }
@@ -245,6 +445,24 @@ function emitAndDraw(session) {
   const block = emitAvatarBlock(session);
   paintAvatar(gfx, sceneFromBlock(block));
   blockEl.textContent = JSON.stringify(block);
+}
+
+function micWorkletUrl() {
+  return URL.createObjectURL(
+    new Blob(
+      [
+        `class TapMic extends AudioWorkletProcessor {
+  process(inputs) {
+    const channel = inputs[0]?.[0];
+    if (channel) this.port.postMessage(channel.slice());
+    return true;
+  }
+}
+registerProcessor("tap-mic", TapMic);`,
+      ],
+      { type: "application/javascript" },
+    ),
+  );
 }
 
 function concatPcm(parts) {
@@ -296,6 +514,50 @@ function decodeBrowserWav(buffer) {
     throw new Error("reply wav");
   }
   return new Int16Array(buffer.slice(dataOffset, dataOffset + dataBytes));
+}
+
+function parseLiveEvent(raw) {
+  if (typeof raw !== "string") {
+    return null;
+  }
+  try {
+    const event = JSON.parse(raw);
+    if (event && typeof event === "object" && typeof event.type === "string") {
+      return event;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function transcriptDelta(event, type) {
+  if (event.type !== type) {
+    return "";
+  }
+  if (typeof event.delta === "string") {
+    return event.delta;
+  }
+  if (event.delta && typeof event.delta === "object" && typeof event.delta.text === "string") {
+    return event.delta.text;
+  }
+  if (typeof event.transcript === "string") {
+    return event.transcript;
+  }
+  if (typeof event.text === "string") {
+    return event.text;
+  }
+  return "";
+}
+
+function liveErrorMessage(event) {
+  if (event.error && typeof event.error === "object" && typeof event.error.message === "string") {
+    return event.error.message;
+  }
+  if (typeof event.message === "string") {
+    return event.message;
+  }
+  return "live error";
 }
 
 function drawIdle() {
