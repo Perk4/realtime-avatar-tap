@@ -2,7 +2,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { liveConfig, talkTurn } from "./live-talk.js";
+import { createWebRtcSession, liveConfig, talkTurn } from "./live-talk.js";
 import { resamplePcm16 } from "./pcm.js";
 import { decodePcm16Wav, encodePcm16Wav } from "./wav.js";
 
@@ -12,7 +12,8 @@ const demoRoot = path.join(repoRoot, "demo");
 const distRoot = path.join(repoRoot, "dist");
 const host = "0.0.0.0";
 const port = Number(process.env.PORT ?? 4173);
-const MAX_BODY = 2_000_000;
+const MAX_WAV = 2_000_000;
+const MAX_SESSION = 256_000;
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -26,13 +27,11 @@ const TYPES = {
   ".json": "application/json; charset=utf-8",
 };
 
-const server = http.createServer((req, res) => {
-  void handle(req, res);
-});
-
-server.listen(port, host, () => {
-  process.stdout.write(`demo http://127.0.0.1:${port}/\n`);
-});
+export function createDemoServer() {
+  return http.createServer((req, res) => {
+    void handle(req, res);
+  });
+}
 
 async function handle(req, res) {
   try {
@@ -43,6 +42,10 @@ async function handle(req, res) {
     }
     if (url.pathname === "/api/talk" && req.method === "POST") {
       await handleTalk(req, res);
+      return;
+    }
+    if (url.pathname === "/api/session" && req.method === "POST") {
+      await handleSession(req, res);
       return;
     }
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -75,7 +78,7 @@ async function handleTalk(req, res) {
     json(res, 503, { error: "OPENAI_API_KEY missing" });
     return;
   }
-  const body = await readBody(req, MAX_BODY);
+  const body = await readBody(req, MAX_WAV);
   let wav;
   try {
     wav = decodePcm16Wav(body);
@@ -94,6 +97,37 @@ async function handleTalk(req, res) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "talk failed";
+    json(res, 502, { error: message });
+  }
+}
+
+async function handleSession(req, res) {
+  const cfg = liveConfig();
+  if (!cfg.enabled) {
+    json(res, 503, { error: "OPENAI_API_KEY missing" });
+    return;
+  }
+  let offer;
+  try {
+    offer = JSON.parse((await readBody(req, MAX_SESSION)).toString("utf8"));
+  } catch {
+    json(res, 400, { error: "sdp" });
+    return;
+  }
+  if (
+    offer === null ||
+    typeof offer !== "object" ||
+    typeof offer.sdp !== "string" ||
+    offer.sdp.trim() === ""
+  ) {
+    json(res, 400, { error: "sdp" });
+    return;
+  }
+  try {
+    const session = await createWebRtcSession(offer.sdp);
+    json(res, 201, session);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "session failed";
     json(res, 502, { error: message });
   }
 }
@@ -143,4 +177,12 @@ function inside(root, relative) {
     return null;
   }
   return resolved;
+}
+
+const isMain =
+  Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isMain) {
+  createDemoServer().listen(port, host, () => {
+    process.stdout.write(`demo http://127.0.0.1:${port}/\n`);
+  });
 }

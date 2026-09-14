@@ -1,6 +1,6 @@
 # realtime-avatar-tap
 
-Synchronous in-memory path from PCM chunks to timed lip and pose blocks. Four functions. No live media.
+Synchronous in-memory path from PCM chunks to timed lip and pose blocks. Four functions.
 
 Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](https://www.youtube.com/watch?v=z1dqv74SpUs) (AI Engineer). This package stops at the ingest and emit loop.
 
@@ -18,18 +18,23 @@ Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](ht
 
 `npm run demo` serves the canvas potato and, when `OPENAI_API_KEY` is set, a GPT-Live conversation.
 
-Tater speaks **replies**. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`.
+Two conversation paths:
 
-Voice model: `gpt-live-1` (OpenAI's live speech model, 16 kHz PCM over a server WebSocket). Reasoning backend: `gpt-5.6-terra`. Not GPT-4o.
+- **Live duplex** — browser WebRTC to GPT-Live. Mic audio and Tater's voice travel on media tracks in the page. The server only exchanges SDP (`POST /api/session`) with the project key. Needs a microphone (localhost or HTTPS).
+- **Play fixture** / **Use mic** then **Stop** — one WAV turn through `POST /api/talk` on a server WebSocket. Fixture works without a mic. Cloud agents use this hop.
+
+Tater's mouth follows **reply** audio only. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`.
+
+Voice model: `gpt-live-1`. Reasoning backend: `gpt-5.6-terra`. Voice: `marin`. Env overrides: `OPENAI_LIVE_MODEL`, `OPENAI_LIVE_BACKEND`, `OPENAI_LIVE_VOICE`. Not GPT-4o.
 
 ```sh
 npm install
 npm run demo
 ```
 
-Open http://127.0.0.1:4173. **Play fixture** sends `speech-fixture.wav` as user audio and plays Tater's reply (needs the key; works without a mic). **Use mic**, then **Stop**, to send a live turn. Mic needs localhost or HTTPS. `fixture.wav` is still the synthetic RMS ladder for tap tests.
+Open http://127.0.0.1:4173.
 
-Keep the key on the Cloud Agent environment as runtime secret `OPENAI_API_KEY`. Do not commit it. Local override: `.env.local` (gitignored) is not read automatically; export the variable in the shell that runs `npm run demo`.
+Keep the key on the Cloud Agent environment as runtime secret `OPENAI_API_KEY`. Do not commit it. Do not put it in `environment.json` or the browser. Local override: `.env.local` (gitignored) is not read automatically; export the variable in the shell that runs `npm run demo`.
 
 Recorded artifact from the pre-conversation puppet path:
 
@@ -42,7 +47,7 @@ Regenerate the fixture WAV or the puppet recording with `npm run demo:fixture` a
 
 ## Not in scope
 
-A LemonSlice clone, GPU rendering, and live WebRTC.
+A LemonSlice product clone and GPU rendering. Reply-driven recorded demo artifact is Later.
 
 ## Run
 

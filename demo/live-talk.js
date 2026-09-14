@@ -4,6 +4,9 @@ export const LIVE_MODEL = "gpt-live-1";
 export const LIVE_BACKEND = "gpt-5.6-terra";
 export const LIVE_VOICE = "marin";
 export const LIVE_RATE_HZ = 16_000;
+export const LIVE_SESSIONS_URL = "https://api.openai.com/v1/live/sessions";
+export const TATER_INSTRUCTIONS =
+  "You are Tater, a talking potato on a canvas. After the caller finishes speaking, always reply out loud in one or two short sentences. Be warm and a little absurd. Do not mention APIs, models, or keys.";
 
 const LIVE_URL = "wss://api.openai.com/v1/live/sessions";
 const CHUNK_SAMPLES = 640;
@@ -20,6 +23,7 @@ export function liveConfig() {
     backend: process.env.OPENAI_LIVE_BACKEND ?? LIVE_BACKEND,
     voice: process.env.OPENAI_LIVE_VOICE ?? LIVE_VOICE,
     rateHz: LIVE_RATE_HZ,
+    duplex: "webrtc",
   };
 }
 
@@ -29,6 +33,91 @@ export function requireApiKey() {
     throw new Error("OPENAI_API_KEY missing");
   }
   return key;
+}
+
+export function webrtcSessionPayload(sdp, cfg = liveConfig()) {
+  if (typeof sdp !== "string" || sdp.trim() === "") {
+    throw new Error("sdp");
+  }
+  return {
+    session: sessionFields({ format: false, cfg }),
+    transport: {
+      type: "webrtc",
+      sdp,
+    },
+  };
+}
+
+export function publicSessionView(result) {
+  if (result === null || typeof result !== "object") {
+    return null;
+  }
+  const session = "session" in result ? result.session : null;
+  const transport = "transport" in result ? result.transport : null;
+  const id =
+    session !== null && typeof session === "object" && typeof session.id === "string"
+      ? session.id
+      : "";
+  const sdp =
+    transport !== null && typeof transport === "object" && typeof transport.sdp === "string"
+      ? transport.sdp
+      : "";
+  if (id.trim() === "" || sdp.trim() === "") {
+    return null;
+  }
+  return {
+    session: { id },
+    transport: { type: "webrtc", sdp },
+  };
+}
+
+export async function createWebRtcSession(sdp, options = {}) {
+  const key = requireApiKey();
+  const fetchImpl = options.fetch ?? fetch;
+  const payload = webrtcSessionPayload(sdp);
+  const response = await fetchImpl(LIVE_SESSIONS_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("live session: invalid json");
+  }
+  if (!response.ok) {
+    throw new Error(errorMessage(parsed));
+  }
+  const view = publicSessionView(parsed);
+  if (view === null) {
+    throw new Error("live session: missing sdp");
+  }
+  return view;
+}
+
+function sessionFields({ format, cfg }) {
+  const audio = {
+    output: { voice: cfg.voice },
+  };
+  if (format) {
+    audio.format = { type: "audio/pcm", rate: LIVE_RATE_HZ };
+  }
+  return {
+    model: cfg.model,
+    instructions: TATER_INSTRUCTIONS,
+    audio,
+    delegation: {
+      type: "responses",
+      responses: {
+        model: cfg.backend,
+      },
+    },
+  };
 }
 
 export async function talkTurn(pcm16k, options = {}) {
@@ -54,21 +143,7 @@ export async function talkTurn(pcm16k, options = {}) {
   ws.send(
     JSON.stringify({
       type: "session.start",
-      session: {
-        model: cfg.model,
-        instructions:
-          "You are Tater, a talking potato on a canvas. After the caller finishes speaking, always reply out loud in one or two short sentences. Be warm and a little absurd. Do not mention APIs, models, or keys.",
-        audio: {
-          format: { type: "audio/pcm", rate: LIVE_RATE_HZ },
-          output: { voice: cfg.voice },
-        },
-        delegation: {
-          type: "responses",
-          responses: {
-            model: cfg.backend,
-          },
-        },
-      },
+      session: sessionFields({ format: true, cfg }),
     }),
   );
   await started;
