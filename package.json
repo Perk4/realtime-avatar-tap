@@ -1,0 +1,17 @@
+{
+  "name": "realtime-avatar-tap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "tsc --noEmit && node --experimental-strip-types --test src/avatar-tap.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.9.3"
+  }
+}
