@@ -20,11 +20,11 @@ A LemonSlice clone, GPU rendering, and live WebRTC.
 
 ## Run
 
-Needs Node 22 or newer.
+Needs Node 22.6 or newer.
 
 ```sh
 npm install
 npm test
 ```
 
-`npm test` runs `tsc --noEmit`, then `src/avatar-tap.test.ts`.
+`npm test` builds `dist/` then runs `node --experimental-strip-types --test src/*.test.ts`. Consumers import compiled JS from `dist/` (`main` / `exports`), not TypeScript source.

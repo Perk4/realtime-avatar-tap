@@ -4,7 +4,7 @@ export {
   emitAvatarBlock,
   ingestAudioChunk,
   openSession,
-} from "./avatar-tap.ts";
+} from "./avatar-tap.js";
 export type {
   AvatarBlock,
   ContinuityFailure,
@@ -12,4 +12,4 @@ export type {
   Lip,
   Pose,
   Session,
-} from "./avatar-tap.ts";
+} from "./avatar-tap.js";
