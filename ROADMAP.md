@@ -5,13 +5,13 @@ Web-apps track for `realtime-avatar-tap`. The four-primitive teach API stays on 
 ## Done
 
 - Teach tap: `openSession`, `ingestAudioChunk`, `emitAvatarBlock`, `assertContinuous` (#1).
-- Potato demo: mic or fixture WAV, visible canvas avatar, recorded artifact (#2).
+- Potato demo: mic or fixture WAV, visible canvas avatar, recorded artifact (#4).
 - Conversation: GPT-Live (`gpt-live-1`) speaks replies over the server WebSocket WAV hop. The tap ingests reply PCM only, not the caller. Backend reasoning is `gpt-5.6-terra`. Needs `OPENAI_API_KEY` as a runtime secret (#5).
-- Browser WebRTC full-duplex: in-page two-way audio to the same Live session. The server mints `POST /api/session`; the key never leaves the server (#7).
+- Browser WebRTC full-duplex: in-page two-way audio to the same Live session. The server mints `POST /api/session`; the key never leaves the server (#9). Issue #7 is closed. AC1 duplex hear-through accepted with Perk local mic verify.
 
 ## Now
 
-- None locked.
+- None. Builder idle until CoS next lock.
 
 ## Later
 
