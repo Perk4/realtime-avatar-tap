@@ -16,7 +16,9 @@ Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](ht
 
 ## Local demo
 
-`npm run demo` serves the canvas avatar and, when `OPENAI_API_KEY` is set, a GPT-Live conversation.
+`npm run demo` serves the avatar page and, when `OPENAI_API_KEY` is set, a GPT-Live conversation.
+
+The **lead character** is a Three.js toon/PBR sports-analyst in a broadcast studio (desk, whiteboard, ESPN Analytics laptop). `tater` remains the 2D potato fallback.
 
 Switch character with the row of buttons, or open a query:
 
@@ -26,9 +28,7 @@ http://127.0.0.1:4173/?character=blocks
 http://127.0.0.1:4173/?character=tater
 ```
 
-`analyst` is a 2D studio talking head aimed at the SEC Nation reference (square head, long neck, gold glasses, desk). `blocks` is a faceted isometric head. `tater` is the original potato.
-
-Nod and Glasses fire an animation graph overlay. The mouth still follows **reply** audio only. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`. See [docs/character-prototypes.md](docs/character-prototypes.md).
+Nod and Glasses fire an animation graph overlay. The mouth still follows **reply** audio only. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`. See [docs/character-prototypes.md](docs/character-prototypes.md) for the lip + graph data path and how this deploys without a GPU farm.
 
 Two conversation paths:
 
@@ -55,9 +55,9 @@ Recorded artifact from the pre-conversation puppet path:
 
 ![Tater mid-talk](artifacts/potato-avatar-demo.jpg)
 
-Character prototype stills (`npm run demo:characters`):
+Character prototype stills (`npm run demo:characters`): raster for Tater, Chrome WebGL capture for analyst/blocks.
 
-| Tater | Analyst | Blocks |
+| Tater (2D) | Analyst (3D) | Blocks (3D) |
 | --- | --- | --- |
 | ![Tater talk](artifacts/characters/tater-talk.png) | ![Analyst talk](artifacts/characters/analyst-talk.png) | ![Blocks talk](artifacts/characters/blocks-talk.png) |
 
@@ -67,9 +67,11 @@ Nod overlay on the same wide viseme:
 | --- | --- |
 | ![Analyst nod](artifacts/characters/analyst-nod.png) | ![Blocks nod](artifacts/characters/blocks-nod.png) |
 
-Browser stills of the same switcher:
+Browser stills of the 3D switcher:
 
-![Analyst in the demo](artifacts/characters/ui-analyst-talk-live.png)
+![Analyst in the demo](artifacts/characters/ui-analyst.png)
+
+![Analyst talking](artifacts/characters/ui-analyst-talk.png)
 
 Regenerate the fixture WAV or the puppet recording with `npm run demo:fixture` and `npm run demo:record`. Track status in [ROADMAP.md](ROADMAP.md).
 

@@ -164,6 +164,18 @@ function resolveFile(pathname) {
   if (clean.startsWith("/lib/")) {
     return inside(demoRoot, clean.slice("/lib/".length));
   }
+  if (clean.startsWith("/vendor/three/jsm/")) {
+    return inside(
+      path.join(repoRoot, "node_modules", "three", "examples", "jsm"),
+      clean.slice("/vendor/three/jsm/".length),
+    );
+  }
+  if (clean.startsWith("/vendor/three/")) {
+    return inside(
+      path.join(repoRoot, "node_modules", "three", "build"),
+      clean.slice("/vendor/three/".length),
+    );
+  }
   return inside(publicRoot, clean.slice(1));
 }
 

@@ -2,12 +2,12 @@ import { paintAvatar, sceneFromBlock } from "./avatar-scene.js";
 import { paintAnalyst } from "./paint-analyst.js";
 import { paintBlocks } from "./paint-blocks.js";
 
-export const CHARACTER_IDS = ["tater", "analyst", "blocks"];
+export const CHARACTER_IDS = ["analyst", "blocks", "tater"];
 
 export const CHARACTERS = [
-  { id: "tater", label: "Tater (potato)" },
-  { id: "analyst", label: "SEC Nation analyst" },
-  { id: "blocks", label: "Block head" },
+  { id: "analyst", label: "SEC Nation analyst (3D)", pipeline: "webgl3d" },
+  { id: "blocks", label: "Block head (3D)", pipeline: "webgl3d" },
+  { id: "tater", label: "Tater (2D fallback)", pipeline: "canvas2d" },
 ];
 
 const PAINT = {
@@ -20,7 +20,11 @@ export function parseCharacter(raw) {
   if (raw === "analyst" || raw === "blocks" || raw === "tater") {
     return raw;
   }
-  return "tater";
+  return "analyst";
+}
+
+export function characterPipeline(id) {
+  return id === "tater" ? "canvas2d" : "webgl3d";
 }
 
 export function composeScene(block, tick) {

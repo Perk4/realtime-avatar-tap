@@ -6,8 +6,15 @@ import {
 } from "/dist/index.js";
 import { HEIGHT, WIDTH } from "/lib/avatar-scene.js";
 import { canvasGfx } from "/lib/canvas-gfx.js";
-import { CHARACTERS, composeScene, paintCharacter, parseCharacter } from "/lib/characters.js";
+import {
+  CHARACTERS,
+  characterPipeline,
+  composeScene,
+  paintCharacter,
+  parseCharacter,
+} from "/lib/characters.js";
 import { createGraph, tickGraph, triggerGesture } from "/lib/anim-graph.js";
+import { createWebglStage } from "/lib/webgl-stage.js";
 import {
   BLOCK_MS,
   WINDOW_SAMPLES,
@@ -18,6 +25,7 @@ import {
 import { encodePcm16Wav } from "/lib/wav.js";
 
 const canvas = document.querySelector("#avatar");
+const canvas3d = document.querySelector("#avatar3d");
 const liveOut = document.querySelector("#live-out");
 const statusEl = document.querySelector("#status");
 const blockEl = document.querySelector("#block");
@@ -35,6 +43,8 @@ const glassesButton = document.querySelector("#gesture-glasses");
 
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
+canvas3d.width = WIDTH;
+canvas3d.height = HEIGHT;
 const ctx = canvas.getContext("2d");
 if (ctx === null) {
   throw new Error("canvas");
@@ -47,6 +57,16 @@ let character = parseCharacter(new URLSearchParams(location.search).get("charact
 let graph = createGraph();
 let lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
 const wallOrigin = performance.now();
+const shotMode = new URLSearchParams(location.search).get("shot");
+let stage = null;
+try {
+  stage = createWebglStage(canvas3d);
+} catch (error) {
+  stage = null;
+  const message = error instanceof Error ? error.message : String(error);
+  document.body.dataset.webglError = message;
+  console.error(error);
+}
 
 duplexButton.addEventListener("click", () => {
   void startDuplex();
@@ -77,10 +97,19 @@ glassesButton.addEventListener("click", () => {
   paintFrame(lastBlock, nowMs());
 });
 wireCharacterButtons();
-
-drawIdle();
-void loadStatus();
-requestAnimationFrame(idleTick);
+if (shotMode) {
+  document.body.classList.add("shot");
+  requestAnimationFrame(() => {
+    applyShotFromQuery();
+  });
+} else {
+  drawIdle();
+  applyPreviewFromQuery();
+  void loadStatus();
+  if (!new URLSearchParams(location.search).get("preview")) {
+    requestAnimationFrame(idleTick);
+  }
+}
 
 async function loadStatus() {
   const response = await fetch("/api/status");
@@ -92,6 +121,9 @@ async function loadStatus() {
   } else {
     llmEl.textContent = "OPENAI_API_KEY missing on server";
     statusEl.textContent = "idle. Conversation needs OPENAI_API_KEY.";
+  }
+  if (!stage) {
+    statusEl.textContent += " WebGL unavailable; 2D painters active.";
   }
 }
 
@@ -315,7 +347,7 @@ async function startMicUnsafe() {
     pending.push(floatsToPcm16(downsampleTo16k(event.data, audio.sampleRate)));
   };
   run = { kind: "mic", audio, stream, pending, stopped: false };
-  statusEl.textContent = "listening. Stop to send the turn. Mouth waits for Tater.";
+  statusEl.textContent = "listening. Stop to send the turn. Mouth waits for the reply.";
 }
 
 async function stopRun() {
@@ -376,7 +408,7 @@ async function converse(wavBlob) {
   userEl.textContent = payload.userText || "(unrecognized)";
   replyEl.textContent = payload.replyText || "(no transcript)";
   const pcm = pcmFromBase64(payload.wavBase64);
-  statusEl.textContent = "Tater speaking";
+  statusEl.textContent = "avatar speaking";
   await playReply(pcm);
   statusEl.textContent = "reply finished";
 }
@@ -467,7 +499,18 @@ function emitAndDraw(session) {
 
 function paintFrame(block, clockMs) {
   const tick = tickGraph(graph, block, clockMs);
-  paintCharacter(character, gfx, composeScene(block, tick));
+  const scene = composeScene(block, tick);
+  const pipeline = characterPipeline(character);
+  const use3d = pipeline === "webgl3d" && stage !== null;
+  canvas.classList.toggle("off", use3d);
+  canvas3d.classList.toggle("off", !use3d);
+  if (use3d) {
+    stage.setCharacter(character);
+    stage.apply(scene);
+    stage.render();
+  } else {
+    paintCharacter(character, gfx, scene);
+  }
   blockEl.textContent = JSON.stringify({
     t0Ms: block.t0Ms,
     durationMs: block.durationMs,
@@ -475,7 +518,59 @@ function paintFrame(block, clockMs) {
     pose: block.pose,
     gesture: tick.gesture,
     character,
+    pipeline: use3d ? "webgl3d" : "canvas2d",
   });
+  document.body.dataset.stageReady = "1";
+}
+
+function applyShotFromQuery() {
+  if (!shotMode) {
+    return;
+  }
+  graph = createGraph();
+  if (shotMode === "talk") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    paintFrame(lastBlock, 80);
+    return;
+  }
+  if (shotMode === "nod") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    triggerGesture(graph, "nod", 0);
+    paintFrame(lastBlock, 160);
+    return;
+  }
+  if (shotMode === "glasses") {
+    lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+    triggerGesture(graph, "glasses", 0);
+    paintFrame(lastBlock, 260);
+    return;
+  }
+  lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+  paintFrame(lastBlock, 0);
+}
+
+function applyPreviewFromQuery() {
+  const preview = new URLSearchParams(location.search).get("preview");
+  if (!preview) {
+    return;
+  }
+  graph = createGraph();
+  if (preview === "talk") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    paintFrame(lastBlock, 80);
+    return;
+  }
+  if (preview === "nod") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    triggerGesture(graph, "nod", 0);
+    paintFrame(lastBlock, 160);
+    return;
+  }
+  if (preview === "glasses") {
+    lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+    triggerGesture(graph, "glasses", 0);
+    paintFrame(lastBlock, 260);
+  }
 }
 
 function nowMs() {

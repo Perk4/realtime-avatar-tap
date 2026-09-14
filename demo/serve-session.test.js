@@ -79,6 +79,23 @@ test("POST /api/session returns the public view and never the key", async (t) =>
   assert.ok(!JSON.stringify(response.body).includes("strip"));
 });
 
+test("GET /vendor/three/three.module.js is the Three.js ESM build", async (t) => {
+  const server = await listen(t);
+  const response = await fetch(url(server, "/vendor/three/three.module.js"));
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /javascript/);
+  const body = await response.text();
+  assert.match(body, /WebGLRenderer/);
+});
+
+test("GET /vendor/three/jsm/geometries/RoundedBoxGeometry.js is reachable", async (t) => {
+  const server = await listen(t);
+  const response = await fetch(url(server, "/vendor/three/jsm/geometries/RoundedBoxGeometry.js"));
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /RoundedBoxGeometry/);
+});
+
 test("POST /api/talk still exists as the turn-based wav path", async (t) => {
   const previous = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "sk-test-secret";

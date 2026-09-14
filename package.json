@@ -28,7 +28,7 @@
     "demo:speech-fixture": "node demo/make-speech-fixture.mjs",
     "demo:talk": "node demo/talk-fixture.mjs",
     "demo:record": "npm run build && node demo/record-demo.mjs",
-    "demo:characters": "node demo/snapshot-characters.mjs"
+    "demo:characters": "npm run build && node demo/snapshot-characters.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
@@ -36,6 +36,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "three": "^0.170.0",
     "ws": "^8.21.3"
   }
 }

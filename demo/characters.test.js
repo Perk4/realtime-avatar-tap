@@ -1,17 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createGraph, tickGraph, triggerGesture } from "./anim-graph.js";
-import { composeScene, parseCharacter, paintCharacter } from "./characters.js";
+import { characterPipeline, composeScene, parseCharacter, paintCharacter } from "./characters.js";
 import { emitAvatarBlock, ingestAudioChunk, openSession } from "../src/avatar-tap.ts";
 import { WINDOW_SAMPLES } from "./pcm.js";
 import { createRaster } from "./raster.js";
 
-test("parseCharacter falls back to tater", () => {
+test("parseCharacter defaults to analyst", () => {
   assert.equal(parseCharacter("analyst"), "analyst");
   assert.equal(parseCharacter("blocks"), "blocks");
   assert.equal(parseCharacter("tater"), "tater");
-  assert.equal(parseCharacter(null), "tater");
-  assert.equal(parseCharacter("lemon"), "tater");
+  assert.equal(parseCharacter(null), "analyst");
+  assert.equal(parseCharacter("lemon"), "analyst");
+});
+
+test("analyst and blocks use the webgl pipeline, tater stays canvas", () => {
+  assert.equal(characterPipeline("analyst"), "webgl3d");
+  assert.equal(characterPipeline("blocks"), "webgl3d");
+  assert.equal(characterPipeline("tater"), "canvas2d");
 });
 
 test("conversation path still ingests reply audio, not caller audio", () => {
