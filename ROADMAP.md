@@ -11,9 +11,9 @@ Web-apps track for `realtime-avatar-tap`. The four-primitive teach API stays on 
 
 ## Now
 
-- None. Builder idle until CoS next lock.
+- None. Builder idle until CoS locks a new NOW.
 
 ## Later
 
-- Reply-driven recorded demo artifact.
+- Parked/killed: reply-driven recorded demo artifact. Not NOW. Do not re-record `potato-avatar-demo.mp4`.
 - Out of scope: GPU renderer, LemonSlice product WebRTC clone.
