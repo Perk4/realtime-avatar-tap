@@ -25,6 +25,7 @@ const TYPES = {
   ".wav": "audio/wav",
   ".png": "image/png",
   ".gltf": "model/gltf+json",
+  ".glb": "model/gltf-binary",
   ".bin": "application/octet-stream",
   ".jpg": "image/jpeg",
   ".mp4": "video/mp4",

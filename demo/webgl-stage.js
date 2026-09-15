@@ -1,5 +1,5 @@
 /**
- * Three.js host for the Quaternius sports analyst and the block puppet.
+ * Three.js host for the Rocketbox sports analyst and the block puppet.
  * Tater stays on the 2D canvas. This owns the WebGL canvas, including still capture.
  */
 import * as THREE from "three";

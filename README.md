@@ -18,7 +18,7 @@ Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](ht
 
 `npm install` then `npm run demo` serves the avatar page. Three.js loads from `node_modules/three` at `/vendor/three`. If that package is missing, the page still boots in 2D.
 
-The **lead character** is a Quaternius CC0 Superhero Male (Pixar-adjacent football-player build) restyled as a sports analyst in a broadcast studio. License: [docs/THIRD_PARTY_ASSETS.md](docs/THIRD_PARTY_ASSETS.md). `tater` remains the 2D potato fallback.
+The **lead character** is Microsoft Rocketbox `Sports_Male_04` (MIT) — an athletic male with authored Oculus visemes — restyled as a sports analyst in a broadcast studio. License: [docs/THIRD_PARTY_ASSETS.md](docs/THIRD_PARTY_ASSETS.md). `tater` remains the 2D potato fallback.
 
 Switch character with the row of buttons, or open a query:
 

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   MOUTH_CENTER,
   NOSE_ALBEDO_MAX_Y,
+  applyMorphInfluences,
   buildMouthMorphs,
   mouthFalloff,
   paintMouthViseme,
@@ -155,4 +156,37 @@ test("viseme table keeps graph-safe channels and readable morph steps", () => {
   assert.ok(open.lift > narrow.lift);
   assert.ok(open.cavityY > narrow.cavityY);
   assert.ok(wide.cavityY > open.cavityY);
+});
+
+test("lip maps onto authored Oculus visemes the template actually has", () => {
+  const closed = visemeFromLip("closed");
+  const narrow = visemeFromLip("narrow");
+  const open = visemeFromLip("open");
+  const wide = visemeFromLip("wide");
+  assert.ok(closed.viseme_sil > 0.9);
+  assert.ok(narrow.viseme_U > open.viseme_U);
+  assert.ok(narrow.mouthFunnel > wide.mouthFunnel);
+  assert.ok(open.viseme_aa > wide.viseme_aa);
+  assert.ok(wide.viseme_I > open.viseme_I);
+  assert.ok(wide.mouthSmileLeft > open.mouthSmileLeft);
+  assert.ok(open.jawOpen > closed.jawOpen);
+});
+
+test("applyMorphInfluences writes matching targets and zeros the rest", () => {
+  const mesh = {
+    morphTargetInfluences: [0.4, 0.4, 0.4, 0.4],
+    morphTargetDictionary: { viseme_aa: 0, viseme_U: 1, jaw: 2, viseme_sil: 3 },
+  };
+  applyMorphInfluences(mesh, visemeFromLip("open"));
+  assert.ok(mesh.morphTargetInfluences[0] > 0.5, String(mesh.morphTargetInfluences[0]));
+  assert.equal(mesh.morphTargetInfluences[1], 0);
+  assert.ok(mesh.morphTargetInfluences[2] > 0.5);
+  assert.equal(mesh.morphTargetInfluences[3], 0);
+  applyMorphInfluences(mesh, visemeFromLip("narrow"));
+  assert.ok(mesh.morphTargetInfluences[1] > 0.5);
+  assert.ok(mesh.morphTargetInfluences[1] > mesh.morphTargetInfluences[0]);
+  applyMorphInfluences(mesh, visemeFromLip("closed"));
+  assert.ok(mesh.morphTargetInfluences[3] > 0.9);
+  assert.equal(mesh.morphTargetInfluences[0], 0);
+  assert.equal(mesh.morphTargetInfluences[1], 0);
 });

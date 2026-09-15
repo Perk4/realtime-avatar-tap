@@ -75,17 +75,19 @@ export function applyMorphInfluences(mesh, viseme) {
   if (!infl || !dict) {
     return;
   }
-  if (dict.jaw !== undefined) {
-    infl[dict.jaw] = viseme.jawMorph;
-  }
-  if (dict.wide !== undefined) {
-    infl[dict.wide] = viseme.wideMorph;
-  }
-  if (dict.funnel !== undefined) {
-    infl[dict.funnel] = viseme.funnel;
-  }
-  if (dict.lift !== undefined) {
-    infl[dict.lift] = viseme.lift ?? 0;
+  infl.fill(0);
+  const mapped = {
+    ...viseme,
+    jaw: viseme.jawMorph,
+    wide: viseme.wideMorph,
+    funnel: viseme.funnel,
+    lift: viseme.lift ?? 0,
+  };
+  for (const [name, value] of Object.entries(mapped)) {
+    if (typeof value !== "number" || dict[name] === undefined) {
+      continue;
+    }
+    infl[dict[name]] = Math.max(0, Math.min(1, value));
   }
 }
 

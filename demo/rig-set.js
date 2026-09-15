@@ -18,12 +18,12 @@ export function addFilmLights(scene, renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = pmrem.fromScene(new RoomEnvironment(), 0.08).texture;
   scene.environment = env;
-  scene.environmentIntensity = 0.22;
+  scene.environmentIntensity = 0.28;
   pmrem.dispose();
 
-  scene.add(new THREE.HemisphereLight(0xdde6ee, 0x1a140f, 0.16));
+  scene.add(new THREE.HemisphereLight(0xdde6ee, 0x1a140f, 0.22));
 
-  const key = new THREE.DirectionalLight(0xffe2c4, 1.35);
+  const key = new THREE.DirectionalLight(0xffe2c4, 1.72);
   key.position.set(-2.4, 3.6, 4.2);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -44,7 +44,7 @@ export function addFilmLights(scene, renderer) {
   keySoft.lookAt(0.1, 1.55, 0.1);
   scene.add(keySoft);
 
-  const fill = new THREE.DirectionalLight(0x9bb8d4, 0.32);
+  const fill = new THREE.DirectionalLight(0x9bb8d4, 0.62);
   fill.position.set(3.4, 2.2, 3.0);
   scene.add(fill);
 
@@ -53,11 +53,11 @@ export function addFilmLights(scene, renderer) {
   fillSoft.lookAt(0.1, 1.5, 0.1);
   scene.add(fillSoft);
 
-  const rim = new THREE.DirectionalLight(0xe8eef6, 1.05);
+  const rim = new THREE.DirectionalLight(0xe8eef6, 1.55);
   rim.position.set(0.55, 3.4, -4.6);
   scene.add(rim);
 
-  const face = new THREE.SpotLight(0xffe6c8, 3.2, 8, 0.48, 0.55, 1.4);
+  const face = new THREE.SpotLight(0xffe6c8, 4.4, 8, 0.48, 0.55, 1.4);
   face.position.set(-0.45, 2.28, 1.85);
   face.target.position.set(0.08, 1.64, 0.08);
   scene.add(face);
@@ -72,7 +72,7 @@ export function addFilmLights(scene, renderer) {
   scene.add(screen);
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.02;
+  renderer.toneMappingExposure = 1.08;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;

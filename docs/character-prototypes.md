@@ -4,7 +4,7 @@ The tap still emits 40 ms lip and pose blocks from reply PCM. Character look and
 
 ## Overview
 
-`realtime-avatar-tap` is a four-function ingest and emit loop. `openSession`, `ingestAudioChunk`, `emitAvatarBlock`, and `assertContinuous` turn signed 16-bit mono PCM into `{ t0Ms, durationMs, lip, pose }`. The local demo leads with a Three.js sports-analyst built on Quaternius' CC0 Superhero Male (Pixar-adjacent football-player mass, broadcast polo). `tater` stays as a 2D canvas fallback. An animation graph can nod or slide glasses while the mouth still follows reply audio.
+`realtime-avatar-tap` is a four-function ingest and emit loop. `openSession`, `ingestAudioChunk`, `emitAvatarBlock`, and `assertContinuous` turn signed 16-bit mono PCM into `{ t0Ms, durationMs, lip, pose }`. The local demo leads with a Three.js sports-analyst built on Microsoft Rocketbox `Sports_Male_04` (athletic football-player build, authored Oculus visemes, broadcast polo restyle). `tater` stays as a 2D canvas fallback. An animation graph can nod or slide glasses while the mouth still follows reply audio.
 
 The live path is unchanged. Browser WebRTC still posts SDP to `POST /api/session`. The WAV hop still uses `POST /api/talk`. `OPENAI_API_KEY` stays on the server. Caller PCM is still not ingested.
 
@@ -50,7 +50,7 @@ Lips stay on the block. A wide viseme plus a nod is a legal frame. The 3D camera
 
 **Cloudflare Pages / Workers later.** Pages can host the static demo. A Worker (or Pages Function) would own `/api/session` and `/api/talk` so the key never ships to the browser. Three.js stays a static asset. No extra GPU product is required.
 
-**Why this is not a LemonSlice GPU farm.** The avatar is a browser WebGL scene of a CC0 glTF plus a tiny viseme morph set. Lip drive is RMS windows on the CPU. Gestures are a tiny JS graph. There is no mesh sequence farm and no server-side renderer. `npm run demo:record` still paints Tater through the CPU raster. WebGL stills are dual-exported by Chrome against the running demo (`npm run demo:characters`).
+**Why this is not a LemonSlice GPU farm.** The avatar is a browser WebGL scene of a MIT-licensed Rocketbox glTF plus its authored viseme morph set. Lip drive is RMS windows on the CPU. Gestures are a tiny JS graph. There is no mesh sequence farm and no server-side renderer. `npm run demo:record` still paints Tater through the CPU raster. WebGL stills are dual-exported by Chrome against the running demo (`npm run demo:characters`).
 
 ## Where things live
 
@@ -60,7 +60,7 @@ Lips stay on the block. A wide viseme plus a nod is a legal frame. The 3D camera
 - `demo/rig-pose.js` — block + graph → mouth/head/glasses numbers. Node-testable.
 - `demo/webgl-stage.js` — Three.js renderer host.
 - `demo/rig-analyst.js` / `demo/rig-blocks.js` / `demo/rig-set.js` / `demo/mouth-morphs.js` — mesh loader, morph visemes, studio. Browser-only except morph math, which Node tests.
-- `demo/public/assets/analyst/` — vendored Quaternius CC0 GLTF. See [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md).
+- `demo/public/assets/analyst/` — vendored Rocketbox MIT GLB. See [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md).
 - `demo/paint-analyst.js` / `demo/paint-blocks.js` — 2D fallbacks and raster unit tests, not the product lead.
 - `demo/public/demo.js` — switcher, graph buttons, reply-only ingest, canvas vs WebGL swap.
 
@@ -68,9 +68,9 @@ Lips stay on the block. A wide viseme plus a nod is a legal frame. The 3D camera
 
 Ranked for `npm run demo` in a browser, Node 22.6, no GPU product pipeline.
 
-1. **Three.js PBR mesh (wired).** Lead path for `analyst`: Quaternius Superhero Male + authored mouth morphs, film key/fill/rim. `blocks` stays a second primitive construction in the same studio. Stills come from Chrome, not `demo/raster.js`.
+1. **Three.js PBR mesh (wired).** Lead path for `analyst`: Rocketbox `Sports_Male_04` + Oculus visemes, film key/fill/rim. `blocks` stays a second primitive construction in the same studio. Stills come from Chrome, not `demo/raster.js`.
 2. **Canvas 2D.** Still used for `tater` and for Node paint tests. Rejected as the sports-analyst product look.
-3. **Ready Player Me / Mixamo / VRM.** RPM's hosted GLB CDN is gone. Mixamo is still a fine clip source. This slice vendors a CC0 base instead of a dead URL.
+3. **Ready Player Me / Mixamo / VRM.** RPM's hosted GLB CDN is gone. Mixamo is still a fine clip source. This slice vendors a MIT Rocketbox facial FBX instead of a dead URL.
 4. **Video plate plus mouth overlay.** Blocked on plates and on the parked reply-driven mp4 path.
 
 ## Lip plus graph coexistence
@@ -88,15 +88,15 @@ What a later graph can add without changing the tap: clip names, hold and blend,
 
 ## Gaps vs Pixar / The Incredibles
 
-This is a stylized 3D *direction* on a real base mesh, not a feature-film head.
+This is a game-cinematic sports-analyst on a real viseme-capable base, not a feature-film head.
 
-- Superhero Male has game-ready topology and PBR maps, not a film sculpt or grooms.
-- The pack has no ARKit / Oculus visemes. Mouth shapes are authored morph deltas plus a cavity overlay, driven by the tap's four RMS lips.
+- Rocketbox `Sports_Male_04` is a research/game avatar (MIT), not a Pixar sculpt or grooms. Proportions are athletic-realistic rather than Incredibles caricature.
+- Mouth shapes are the pack's authored Oculus visemes, driven by the tap's four RMS lips (`closed`/`narrow`/`open`/`wide`), not a phoneme dictionary.
 - Skin is `MeshPhysicalMaterial` sheen, not true SSS.
 - No cloth sim, no facial muscle system, no eye refraction.
 - `blocks` is still primitive, on purpose, as a second construction.
 
-The broadcast cues are the desk, gold glasses, 0/1 tie, SEC Nation badge/mug, ESPN Analytics laptop, whiteboard, and navy/gold polo restyle.
+The broadcast cues are the desk, gold glasses, polo collar, SEC Nation badge/mug, ESPN Analytics laptop, whiteboard, and navy/gold polo restyle.
 
 ## Gotchas
 

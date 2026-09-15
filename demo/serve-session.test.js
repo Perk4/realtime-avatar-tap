@@ -96,16 +96,19 @@ test("GET /vendor/three/jsm/geometries/RoundedBoxGeometry.js is reachable", asyn
   assert.match(body, /RoundedBoxGeometry/);
 });
 
-test("GET /assets/analyst Superhero Male gltf is the CC0 base mesh", async (t) => {
+test("GET /assets/analyst sports-male-04 glb is the MIT Rocketbox base", async (t) => {
   const server = await listen(t);
-  const response = await fetch(url(server, "/assets/analyst/Superhero_Male_FullBody.gltf"));
+  const response = await fetch(url(server, "/assets/analyst/sports-male-04.glb"));
   assert.equal(response.status, 200);
-  const body = await response.text();
-  assert.match(body, /SuperHero_Male/);
-  assert.match(body, /T_Analyst_Broadcast\.png/);
-  const license = await fetch(url(server, "/assets/analyst/License_Standard.txt"));
+  const bytes = await response.arrayBuffer();
+  assert.ok(bytes.byteLength > 200_000, String(bytes.byteLength));
+  const header = Buffer.from(bytes.slice(0, 4)).toString("ascii");
+  assert.equal(header, "glTF");
+  const license = await fetch(url(server, "/assets/analyst/LICENSE.md"));
   assert.equal(license.status, 200);
-  assert.match(await license.text(), /CC0 1\.0 Universal/);
+  const text = await license.text();
+  assert.match(text, /MIT License/);
+  assert.match(text, /Microsoft/);
 });
 
 test("demo.js loads the WebGL stage with a dynamic import", async (t) => {
