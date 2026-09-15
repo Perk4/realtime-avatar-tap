@@ -18,11 +18,21 @@ test("jaw morph drops the chin and pulls the lip opening back", () => {
     2,
   ]);
   const morphs = buildMouthMorphs(positions);
-  assert.ok(morphs.jaw[1] < -0.01, String(morphs.jaw[1]));
+  assert.ok(morphs.jaw[1] < -0.02, String(morphs.jaw[1]));
   assert.ok(morphs.jaw[2] < 0, String(morphs.jaw[2]));
   assert.equal(morphs.jaw[3], 0);
   assert.equal(morphs.jaw[4], 0);
   assert.equal(morphs.jaw[5], 0);
+});
+
+test("lift morph raises the upper lip", () => {
+  const positions = new Float32Array([
+    MOUTH_CENTER.x,
+    MOUTH_CENTER.y + 0.012,
+    MOUTH_CENTER.z,
+  ]);
+  const morphs = buildMouthMorphs(positions);
+  assert.ok(morphs.lift[1] > 0.01, String(morphs.lift[1]));
 });
 
 test("wide and funnel morphs pull corners in opposite directions", () => {
@@ -52,6 +62,7 @@ test("viseme table keeps graph-safe channels and readable morph steps", () => {
   assert.ok(narrow.funnel > open.funnel);
   assert.ok(wide.jawMorph > open.jawMorph);
   assert.ok(wide.wideMorph > narrow.wideMorph);
+  assert.ok(open.lift > narrow.lift);
   assert.ok(open.cavityY > narrow.cavityY);
   assert.ok(wide.cavityY > open.cavityY);
 });

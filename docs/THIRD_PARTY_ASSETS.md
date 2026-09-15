@@ -12,7 +12,7 @@ Superhero Male full-body + Simple Parted hair.
 - License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) (public domain dedication). Copy in `demo/public/assets/analyst/License_Standard.txt`.
 - Files used: `Superhero_Male_FullBody.gltf` / `.bin`, `Hair_SimpleParted.gltf` / `.bin`, PBR maps.
 
-Ready Player Me’s public avatar CDN was discontinued (Jan 2026), so this pack is the license-clear stylized humanoid we can actually vendor. Superhero proportions read as a Pixar-adjacent ex-college football player (broad shoulders, short neck-to-head, heroic mass). Mixamo remains usable for clips later; this slice does not redistribute Mixamo meshes.
+Ready Player Me’s public avatar CDN was discontinued (Jan 2026), so this pack is the license-clear stylized humanoid we can actually vendor. Superhero proportions read as a Pixar-adjacent ex-college football player (broad shoulders, short neck-to-head, heroic mass). Mixamo Remy is ToS-ok but has no morphs. Microsoft Rocketbox `Business_Male_03` (MIT) has authored Oculus visemes but reads as a suit pundit, not the football-player brief. Mixamo remains usable for clips later; this slice does not redistribute Mixamo meshes.
 
 ## What we changed
 
@@ -20,7 +20,7 @@ Ready Player Me’s public avatar CDN was discontinued (Jan 2026), so this pack 
 - Hair tinted darker for an on-air look.
 - Gold glasses, 0/1 tie, and SEC Nation badge parented to Head / spine bones.
 - Studio key (warm area + directional with soft PCF shadows), cool fill, back rim.
-- Lip shapes: the pack has **no** facial blendshapes. `demo/mouth-morphs.js` authors jaw / wide / funnel deltas on the head verts. `visemeFromLip` still maps tap `lip` values. Nod and glasses still come from `tickGraph` and never write `lip`.
+- Lip shapes: the pack has **no** facial blendshapes. `demo/mouth-morphs.js` authors jaw / wide / funnel / lift deltas on the head verts (Oculus-like buckets from `lip`). `visemeFromLip` still maps tap `lip` values. Nod and glasses still come from `tickGraph` and never write `lip`.
 
 ## Runtime paths
 

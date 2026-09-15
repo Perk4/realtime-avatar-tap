@@ -58,7 +58,7 @@ export async function createAnalystWorld(renderer) {
   head.add(glasses);
 
   const mouth = makeMouthCavity();
-  mouth.group.position.set(0, -0.016, 0.09);
+  mouth.group.position.set(0, -0.018, 0.1);
   head.add(mouth.group);
 
   const badge = makeBadge();
@@ -105,9 +105,9 @@ export async function createAnalystWorld(renderer) {
       }
       applyMorphInfluences(bodyMesh, viseme);
       mouth.group.visible = viseme.teeth || viseme.jawMorph > 0.12;
-      mouth.cavity.scale.set(viseme.cavityX * 0.55, viseme.cavityY * 0.42, 1);
+      mouth.cavity.scale.set(viseme.cavityX * 0.7, viseme.cavityY * 0.55, 1);
       mouth.teeth.visible = viseme.teeth;
-      mouth.teeth.scale.set(viseme.cavityX * 0.42, Math.max(0.35, viseme.cavityY * 0.28), 1);
+      mouth.teeth.scale.set(viseme.cavityX * 0.52, Math.max(0.4, viseme.cavityY * 0.36), 1);
       glasses.position.y = glassesRestY - pose.glassesDrop * 0.028;
       talent.updateMatrixWorld(true);
     },
@@ -139,8 +139,10 @@ function installMouthMorphs(mesh) {
   wide.name = "wide";
   const funnel = new THREE.Float32BufferAttribute(morphs.funnel, 3);
   funnel.name = "funnel";
+  const lift = new THREE.Float32BufferAttribute(morphs.lift, 3);
+  lift.name = "lift";
   mesh.geometry.morphTargetsRelative = true;
-  mesh.geometry.morphAttributes.position = [jaw, wide, funnel];
+  mesh.geometry.morphAttributes.position = [jaw, wide, funnel, lift];
   mesh.updateMorphTargets();
 }
 
@@ -225,17 +227,18 @@ function enableShadows(obj) {
 function makeMouthCavity() {
   const group = new THREE.Group();
   const cavity = new THREE.Mesh(
-    new THREE.CircleGeometry(0.028, 22),
-    new THREE.MeshStandardMaterial({ color: 0x2a0c0c, roughness: 0.9, side: THREE.DoubleSide }),
+    new THREE.CircleGeometry(0.042, 24),
+    new THREE.MeshStandardMaterial({ color: 0x1a0808, roughness: 0.92, side: THREE.DoubleSide }),
   );
   group.add(cavity);
   const teeth = new THREE.Mesh(
-    new THREE.CircleGeometry(0.02, 16, 0, Math.PI),
+    new THREE.CircleGeometry(0.03, 16, 0, Math.PI),
     new THREE.MeshStandardMaterial({ color: 0xf2ece4, roughness: 0.32, side: THREE.DoubleSide }),
   );
-  teeth.position.set(0, 0.006, 0.001);
+  teeth.position.set(0, 0.008, 0.0015);
   teeth.rotation.z = Math.PI;
   group.add(teeth);
+  group.position.set(0, -0.018, 0.1);
   group.visible = false;
   return { group, cavity, teeth };
 }

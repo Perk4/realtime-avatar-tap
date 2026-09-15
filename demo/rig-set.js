@@ -18,13 +18,13 @@ export function addFilmLights(scene, renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = pmrem.fromScene(new RoomEnvironment(), 0.08).texture;
   scene.environment = env;
-  scene.environmentIntensity = 0.22;
+  scene.environmentIntensity = 0.48;
   pmrem.dispose();
 
-  scene.add(new THREE.HemisphereLight(0xc9d6e4, 0x1a140f, 0.22));
+  scene.add(new THREE.HemisphereLight(0xe8f0f6, 0x1a140f, 0.34));
 
-  const key = new THREE.DirectionalLight(0xffe4c4, 2.15);
-  key.position.set(-2.4, 4.4, 5.2);
+  const key = new THREE.DirectionalLight(0xffe8cc, 2.85);
+  key.position.set(-2.2, 4.1, 4.6);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.radius = 5;
@@ -44,18 +44,24 @@ export function addFilmLights(scene, renderer) {
   keySoft.lookAt(0.1, 1.55, 0.1);
   scene.add(keySoft);
 
-  const fill = new THREE.DirectionalLight(0x8eb0d4, 0.95);
-  fill.position.set(3.6, 2.1, 3.1);
+  const fill = new THREE.DirectionalLight(0xa8c6e6, 1.15);
+  fill.position.set(3.4, 2.2, 3.0);
   scene.add(fill);
 
-  const fillSoft = new THREE.RectAreaLight(0x9bb8d6, 6.5, 2.2, 1.3);
+  const fillSoft = new THREE.RectAreaLight(0xb7cce4, 8, 2.2, 1.3);
   fillSoft.position.set(2.6, 2.0, 2.4);
   fillSoft.lookAt(0.1, 1.5, 0.1);
   scene.add(fillSoft);
 
-  const rim = new THREE.DirectionalLight(0xeef4ff, 2.55);
-  rim.position.set(0.4, 3.6, -5.4);
+  const rim = new THREE.DirectionalLight(0xf4f8ff, 2.85);
+  rim.position.set(0.55, 3.4, -4.6);
   scene.add(rim);
+
+  const face = new THREE.SpotLight(0xffe6c8, 16, 8, 0.38, 0.4, 1.3);
+  face.position.set(-0.35, 2.35, 1.9);
+  face.target.position.set(0.08, 1.64, 0.08);
+  scene.add(face);
+  scene.add(face.target);
 
   const bounce = new THREE.PointLight(0xff9966, 0.55, 7, 1.5);
   bounce.position.set(0.2, 0.82, 1.2);
@@ -66,7 +72,7 @@ export function addFilmLights(scene, renderer) {
   scene.add(screen);
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
+  renderer.toneMappingExposure = 1.22;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -109,8 +115,8 @@ export function addBroadcastSet(scene) {
 export function talkingHeadCamera(lookAt = [0.12, 1.64, 0.06]) {
   const camera = new THREE.PerspectiveCamera(26, 640 / 360, 0.08, 40);
   const [lx, ly, lz] = lookAt;
-  camera.position.set(lx + 0.16, ly + 0.05, lz + 1.52);
-  camera.lookAt(lx, ly - 0.03, lz);
+  camera.position.set(lx + 0.1, ly + 0.04, lz + 1.12);
+  camera.lookAt(lx, ly - 0.02, lz);
   return camera;
 }
 
