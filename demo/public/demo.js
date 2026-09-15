@@ -4,8 +4,16 @@ import {
   ingestAudioChunk,
   openSession,
 } from "/dist/index.js";
-import { HEIGHT, WIDTH, paintAvatar, sceneFromBlock } from "/lib/avatar-scene.js";
+import { HEIGHT, WIDTH } from "/lib/avatar-scene.js";
 import { canvasGfx } from "/lib/canvas-gfx.js";
+import {
+  CHARACTERS,
+  characterPipeline,
+  composeScene,
+  paintCharacter,
+  parseCharacter,
+} from "/lib/characters.js";
+import { createGraph, tickGraph, triggerGesture } from "/lib/anim-graph.js";
 import {
   BLOCK_MS,
   WINDOW_SAMPLES,
@@ -16,6 +24,7 @@ import {
 import { encodePcm16Wav } from "/lib/wav.js";
 
 const canvas = document.querySelector("#avatar");
+const canvas3d = document.querySelector("#avatar3d");
 const liveOut = document.querySelector("#live-out");
 const statusEl = document.querySelector("#status");
 const blockEl = document.querySelector("#block");
@@ -24,12 +33,18 @@ const userEl = document.querySelector("#user-text");
 const replyEl = document.querySelector("#reply-text");
 const duplexButton = document.querySelector("#live-duplex");
 const playButton = document.querySelector("#play-fixture");
+const previewButton = document.querySelector("#preview-lips");
 const micButton = document.querySelector("#use-mic");
 const stopButton = document.querySelector("#stop");
 const continuityButton = document.querySelector("#assert-continuous");
+const characterRow = document.querySelector("#characters");
+const nodButton = document.querySelector("#gesture-nod");
+const glassesButton = document.querySelector("#gesture-glasses");
 
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
+canvas3d.width = WIDTH;
+canvas3d.height = HEIGHT;
 const ctx = canvas.getContext("2d");
 if (ctx === null) {
   throw new Error("canvas");
@@ -38,12 +53,21 @@ const gfx = canvasGfx(ctx);
 
 let run = null;
 let live = null;
+let character = parseCharacter(new URLSearchParams(location.search).get("character"));
+let graph = createGraph();
+let lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+const wallOrigin = performance.now();
+const shotMode = new URLSearchParams(location.search).get("shot");
+let stage = null;
 
 duplexButton.addEventListener("click", () => {
   void startDuplex();
 });
 playButton.addEventListener("click", () => {
   void startFixture();
+});
+previewButton.addEventListener("click", () => {
+  void startLocalPreview();
 });
 micButton.addEventListener("click", () => {
   void startMic();
@@ -59,9 +83,32 @@ continuityButton.addEventListener("click", () => {
     statusEl.textContent = error instanceof Error ? error.message : "assertContinuous failed";
   }
 });
-
-drawIdle();
-void loadStatus();
+nodButton.addEventListener("click", () => {
+  triggerGesture(graph, "nod", nowMs());
+  paintFrame(lastBlock, nowMs());
+});
+glassesButton.addEventListener("click", () => {
+  triggerGesture(graph, "glasses", nowMs());
+  paintFrame(lastBlock, nowMs());
+});
+wireCharacterButtons();
+if (shotMode) {
+  document.body.classList.add("shot");
+}
+void bootStage().then(() => {
+  if (shotMode) {
+    requestAnimationFrame(() => {
+      applyShotFromQuery();
+    });
+    return;
+  }
+  drawIdle();
+  applyPreviewFromQuery();
+  void loadStatus();
+  if (!new URLSearchParams(location.search).get("preview")) {
+    requestAnimationFrame(idleTick);
+  }
+});
 
 async function loadStatus() {
   const response = await fetch("/api/status");
@@ -69,10 +116,15 @@ async function loadStatus() {
   if (live?.enabled) {
     llmEl.textContent = `${live.model} → ${live.backend} (${live.voice}, ${live.duplex ?? "webrtc"})`;
     statusEl.textContent =
-      "idle. Live duplex for two-way audio, or Play fixture / Use mic for one WAV turn.";
+      "idle. Preview lips, Nod, or Glasses to test the avatar. Live duplex / Play fixture talk to GPT-Live.";
   } else {
     llmEl.textContent = "OPENAI_API_KEY missing on server";
-    statusEl.textContent = "idle. Conversation needs OPENAI_API_KEY.";
+    statusEl.textContent =
+      "idle. Preview lips, Nod, or Glasses work without a key. Conversation needs OPENAI_API_KEY.";
+  }
+  if (!stage) {
+    statusEl.textContent +=
+      " WebGL unavailable; 2D painters active. Run npm install and restart npm run demo.";
   }
 }
 
@@ -262,6 +314,39 @@ async function startFixture() {
   }
 }
 
+async function startLocalPreview() {
+  await abortRun();
+  try {
+    statusEl.textContent = "previewing local fixture through the tap";
+    const wav = await fetch("/fixture.wav").then((res) => {
+      if (!res.ok) {
+        throw new Error("fixture.wav missing");
+      }
+      return res.arrayBuffer();
+    });
+    const pcm = decodeBrowserWav(wav);
+    statusEl.textContent = "avatar speaking (local preview)";
+    await playReply(pcm);
+    statusEl.textContent = "preview finished";
+  } catch (error) {
+    statusEl.textContent = error instanceof Error ? error.message : "preview failed";
+  }
+}
+
+async function bootStage() {
+  try {
+    const { createWebglStage } = await import("/lib/webgl-stage.js");
+    stage = createWebglStage(canvas3d);
+  } catch (error) {
+    stage = null;
+    const message = error instanceof Error ? error.message : String(error);
+    document.body.dataset.webglError = message;
+    console.error(error);
+    statusEl.textContent =
+      `Three.js failed to load (${message}). Showing 2D. Run npm install and restart npm run demo.`;
+  }
+}
+
 async function startMic() {
   await abortRun();
   try {
@@ -296,7 +381,7 @@ async function startMicUnsafe() {
     pending.push(floatsToPcm16(downsampleTo16k(event.data, audio.sampleRate)));
   };
   run = { kind: "mic", audio, stream, pending, stopped: false };
-  statusEl.textContent = "listening. Stop to send the turn. Mouth waits for Tater.";
+  statusEl.textContent = "listening. Stop to send the turn. Mouth waits for the reply.";
 }
 
 async function stopRun() {
@@ -357,7 +442,7 @@ async function converse(wavBlob) {
   userEl.textContent = payload.userText || "(unrecognized)";
   replyEl.textContent = payload.replyText || "(no transcript)";
   const pcm = pcmFromBase64(payload.wavBase64);
-  statusEl.textContent = "Tater speaking";
+  statusEl.textContent = "avatar speaking";
   await playReply(pcm);
   statusEl.textContent = "reply finished";
 }
@@ -381,17 +466,18 @@ async function playReply(pcm) {
     windowsEmitted: 0,
   };
   source.start();
-  await pumpPcm(run, pcm, audio.currentTime);
+  await pumpPcm(run, pcm);
 }
 
-function pumpPcm(current, pcm, startedAt) {
+function pumpPcm(current, pcm) {
+  const wallStart = performance.now();
   return new Promise((resolve) => {
     const tick = () => {
       if (run !== current || current.stopped) {
         resolve();
         return;
       }
-      const elapsedMs = (current.audio.currentTime - startedAt) * 1000;
+      const elapsedMs = performance.now() - wallStart;
       const windowsDue = Math.floor(elapsedMs / BLOCK_MS) + 1;
       while (current.windowsEmitted < windowsDue) {
         const offset = current.windowsEmitted * WINDOW_SAMPLES;
@@ -442,9 +528,125 @@ async function abortRun() {
 }
 
 function emitAndDraw(session) {
-  const block = emitAvatarBlock(session);
-  paintAvatar(gfx, sceneFromBlock(block));
-  blockEl.textContent = JSON.stringify(block);
+  lastBlock = emitAvatarBlock(session);
+  paintFrame(lastBlock, nowMs());
+}
+
+function paintFrame(block, clockMs) {
+  const tick = tickGraph(graph, block, clockMs);
+  const scene = composeScene(block, tick);
+  const pipeline = characterPipeline(character);
+  const use3d = pipeline === "webgl3d" && stage !== null;
+  canvas.classList.toggle("off", use3d);
+  canvas3d.classList.toggle("off", !use3d);
+  if (use3d) {
+    stage.setCharacter(character);
+    stage.apply(scene);
+    stage.render();
+  } else {
+    paintCharacter(character, gfx, scene);
+  }
+  blockEl.textContent = JSON.stringify({
+    t0Ms: block.t0Ms,
+    durationMs: block.durationMs,
+    lip: block.lip,
+    pose: block.pose,
+    gesture: tick.gesture,
+    character,
+    pipeline: use3d ? "webgl3d" : "canvas2d",
+  });
+  document.body.dataset.stageReady = "1";
+}
+
+function applyShotFromQuery() {
+  if (!shotMode) {
+    return;
+  }
+  graph = createGraph();
+  if (shotMode === "talk") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    paintFrame(lastBlock, 80);
+    return;
+  }
+  if (shotMode === "nod") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    triggerGesture(graph, "nod", 0);
+    paintFrame(lastBlock, 160);
+    return;
+  }
+  if (shotMode === "glasses") {
+    lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+    triggerGesture(graph, "glasses", 0);
+    paintFrame(lastBlock, 260);
+    return;
+  }
+  lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+  paintFrame(lastBlock, 0);
+}
+
+function applyPreviewFromQuery() {
+  const preview = new URLSearchParams(location.search).get("preview");
+  if (!preview) {
+    return;
+  }
+  graph = createGraph();
+  if (preview === "talk") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    paintFrame(lastBlock, 80);
+    return;
+  }
+  if (preview === "nod") {
+    lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
+    triggerGesture(graph, "nod", 0);
+    paintFrame(lastBlock, 160);
+    return;
+  }
+  if (preview === "glasses") {
+    lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
+    triggerGesture(graph, "glasses", 0);
+    paintFrame(lastBlock, 260);
+  }
+}
+
+function nowMs() {
+  return performance.now() - wallOrigin;
+}
+
+function idleTick() {
+  requestAnimationFrame(idleTick);
+  if (run !== null && run.kind !== "mic") {
+    return;
+  }
+  paintFrame(lastBlock, nowMs());
+}
+
+function wireCharacterButtons() {
+  for (const item of CHARACTERS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.character = item.id;
+    button.textContent = item.label;
+    button.addEventListener("click", () => {
+      setCharacter(item.id);
+    });
+    characterRow.append(button);
+  }
+  markCharacter();
+}
+
+function setCharacter(id) {
+  character = parseCharacter(id);
+  const url = new URL(location.href);
+  url.searchParams.set("character", character);
+  history.replaceState({}, "", url);
+  markCharacter();
+  paintFrame(lastBlock, nowMs());
+}
+
+function markCharacter() {
+  for (const button of characterRow.querySelectorAll("button")) {
+    button.classList.toggle("primary", button.dataset.character === character);
+  }
 }
 
 function micWorkletUrl() {

@@ -16,14 +16,26 @@ Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](ht
 
 ## Local demo
 
-`npm run demo` serves the canvas potato and, when `OPENAI_API_KEY` is set, a GPT-Live conversation.
+`npm install` then `npm run demo` serves the avatar page. Three.js loads from `node_modules/three` at `/vendor/three`. If that package is missing, the page still boots in 2D.
+
+The **lead character** is a Three.js toon/PBR sports-analyst in a broadcast studio (desk, whiteboard, ESPN Analytics laptop). `tater` remains the 2D potato fallback.
+
+Switch character with the row of buttons, or open a query:
+
+```
+http://127.0.0.1:4173/?character=analyst
+http://127.0.0.1:4173/?character=blocks
+http://127.0.0.1:4173/?character=tater
+```
+
+**Preview lips** drives `fixture.wav` through `ingestAudioChunk` / `emitAvatarBlock` in the page. No API key. Nod and Glasses fire the animation graph. The mouth still follows **reply** audio only. Caller audio is not ingested. See [docs/character-prototypes.md](docs/character-prototypes.md) for the lip + graph data path and how this deploys without a GPU farm.
 
 Two conversation paths:
 
 - **Live duplex** — browser WebRTC to GPT-Live. Mic audio and Tater's voice travel on media tracks in the page. The server only exchanges SDP (`POST /api/session`) with the project key. Needs a microphone (localhost or HTTPS).
 - **Play fixture** / **Use mic** then **Stop** — one WAV turn through `POST /api/talk` on a server WebSocket. Fixture works without a mic. Cloud agents use this hop.
 
-Tater's mouth follows **reply** audio only. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`.
+The mouth follows **reply** audio only. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`.
 
 Voice model: `gpt-live-1`. Reasoning backend: `gpt-5.6-terra`. Voice: `marin`. Env overrides: `OPENAI_LIVE_MODEL`, `OPENAI_LIVE_BACKEND`, `OPENAI_LIVE_VOICE`. Not GPT-4o.
 
@@ -42,6 +54,24 @@ Recorded artifact from the pre-conversation puppet path:
 - Poster: [`artifacts/potato-avatar-demo.jpg`](artifacts/potato-avatar-demo.jpg)
 
 ![Tater mid-talk](artifacts/potato-avatar-demo.jpg)
+
+Character prototype stills (`npm run demo:characters`): raster for Tater, Chrome WebGL capture for analyst/blocks.
+
+| Tater (2D) | Analyst (3D) | Blocks (3D) |
+| --- | --- | --- |
+| ![Tater talk](artifacts/characters/tater-talk.png) | ![Analyst talk](artifacts/characters/analyst-talk.png) | ![Blocks talk](artifacts/characters/blocks-talk.png) |
+
+Nod overlay on the same wide viseme:
+
+| Analyst nod | Blocks nod |
+| --- | --- |
+| ![Analyst nod](artifacts/characters/analyst-nod.png) | ![Blocks nod](artifacts/characters/blocks-nod.png) |
+
+Browser stills of the 3D switcher:
+
+![Analyst in the demo](artifacts/characters/ui-analyst.png)
+
+![Analyst talking](artifacts/characters/ui-analyst-talk.png)
 
 Regenerate the fixture WAV or the puppet recording with `npm run demo:fixture` and `npm run demo:record`. Track status in [ROADMAP.md](ROADMAP.md).
 

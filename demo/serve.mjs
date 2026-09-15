@@ -1,4 +1,5 @@
 import http from "node:http";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,7 @@ const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const publicRoot = path.join(repoRoot, "demo", "public");
 const demoRoot = path.join(repoRoot, "demo");
 const distRoot = path.join(repoRoot, "dist");
+const threeModule = path.join(repoRoot, "node_modules", "three", "build", "three.module.js");
 const host = "0.0.0.0";
 const port = Number(process.env.PORT ?? 4173);
 const MAX_WAV = 2_000_000;
@@ -164,6 +166,18 @@ function resolveFile(pathname) {
   if (clean.startsWith("/lib/")) {
     return inside(demoRoot, clean.slice("/lib/".length));
   }
+  if (clean.startsWith("/vendor/three/jsm/")) {
+    return inside(
+      path.join(repoRoot, "node_modules", "three", "examples", "jsm"),
+      clean.slice("/vendor/three/jsm/".length),
+    );
+  }
+  if (clean.startsWith("/vendor/three/")) {
+    return inside(
+      path.join(repoRoot, "node_modules", "three", "build"),
+      clean.slice("/vendor/three/".length),
+    );
+  }
   return inside(publicRoot, clean.slice(1));
 }
 
@@ -182,6 +196,11 @@ function inside(root, relative) {
 const isMain =
   Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
+  if (!existsSync(threeModule)) {
+    process.stderr.write(
+      "demo: node_modules/three is missing. Run npm install so /vendor/three/three.module.js can load.\n",
+    );
+  }
   createDemoServer().listen(port, host, () => {
     process.stdout.write(`demo http://127.0.0.1:${port}/\n`);
   });
