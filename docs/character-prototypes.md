@@ -38,7 +38,7 @@ flowchart LR
   callerPcm["caller PCM"] -.-> x["not ingested"]
 ```
 
-The graph clocks from wall time in the page so idle breathe still moves when no block is pumping. Tests pass explicit `nowMs`. After `pose` flips from `talk` to `rest`, the graph starts a nod. After 2.8 s of rest it starts a glasses slide. Nod and Glasses buttons call `triggerGesture` on the same object.
+The graph clocks from wall time in the page so idle breathe still moves when no block is pumping. Tests pass explicit `nowMs`. After `pose` flips from `talk` to `rest`, the graph starts a nod. After 2.8 s of rest it starts a glasses slide. Nod and Glasses buttons call `triggerGesture` on the same object. **Preview lips** fetches `/fixture.wav` and plays it through the same `playReply` pump the GPT path uses, so lips move without `OPENAI_API_KEY`.
 
 Lips stay on the block. A wide viseme plus a nod is a legal frame. The 3D rig rotates the head by `tilt + nod` and drops glasses by `glasses`. The graph does not write `lip`.
 

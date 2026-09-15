@@ -96,6 +96,15 @@ test("GET /vendor/three/jsm/geometries/RoundedBoxGeometry.js is reachable", asyn
   assert.match(body, /RoundedBoxGeometry/);
 });
 
+test("demo.js loads the WebGL stage with a dynamic import", async (t) => {
+  const server = await listen(t);
+  const html = await (await fetch(url(server, "/"))).text();
+  assert.match(html, /id="preview-lips"/);
+  const demoJs = await (await fetch(url(server, "/demo.js"))).text();
+  assert.match(demoJs, /import\("\/lib\/webgl-stage\.js"\)/);
+  assert.equal(demoJs.includes('from "/lib/webgl-stage.js"'), false);
+});
+
 test("POST /api/talk still exists as the turn-based wav path", async (t) => {
   const previous = process.env.OPENAI_API_KEY;
   process.env.OPENAI_API_KEY = "sk-test-secret";

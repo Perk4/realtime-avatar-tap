@@ -16,7 +16,7 @@ Source itch: Sidney Primas and LemonSlice, [Voice agents with Realtime Video](ht
 
 ## Local demo
 
-`npm run demo` serves the avatar page and, when `OPENAI_API_KEY` is set, a GPT-Live conversation.
+`npm install` then `npm run demo` serves the avatar page. Three.js loads from `node_modules/three` at `/vendor/three`. If that package is missing, the page still boots in 2D.
 
 The **lead character** is a Three.js toon/PBR sports-analyst in a broadcast studio (desk, whiteboard, ESPN Analytics laptop). `tater` remains the 2D potato fallback.
 
@@ -28,7 +28,7 @@ http://127.0.0.1:4173/?character=blocks
 http://127.0.0.1:4173/?character=tater
 ```
 
-Nod and Glasses fire an animation graph overlay. The mouth still follows **reply** audio only. Caller audio is not ingested. Reply PCM goes through `ingestAudioChunk` / `emitAvatarBlock`. See [docs/character-prototypes.md](docs/character-prototypes.md) for the lip + graph data path and how this deploys without a GPU farm.
+**Preview lips** drives `fixture.wav` through `ingestAudioChunk` / `emitAvatarBlock` in the page. No API key. Nod and Glasses fire the animation graph. The mouth still follows **reply** audio only. Caller audio is not ingested. See [docs/character-prototypes.md](docs/character-prototypes.md) for the lip + graph data path and how this deploys without a GPU farm.
 
 Two conversation paths:
 

@@ -14,7 +14,6 @@ import {
   parseCharacter,
 } from "/lib/characters.js";
 import { createGraph, tickGraph, triggerGesture } from "/lib/anim-graph.js";
-import { createWebglStage } from "/lib/webgl-stage.js";
 import {
   BLOCK_MS,
   WINDOW_SAMPLES,
@@ -34,6 +33,7 @@ const userEl = document.querySelector("#user-text");
 const replyEl = document.querySelector("#reply-text");
 const duplexButton = document.querySelector("#live-duplex");
 const playButton = document.querySelector("#play-fixture");
+const previewButton = document.querySelector("#preview-lips");
 const micButton = document.querySelector("#use-mic");
 const stopButton = document.querySelector("#stop");
 const continuityButton = document.querySelector("#assert-continuous");
@@ -59,20 +59,15 @@ let lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
 const wallOrigin = performance.now();
 const shotMode = new URLSearchParams(location.search).get("shot");
 let stage = null;
-try {
-  stage = createWebglStage(canvas3d);
-} catch (error) {
-  stage = null;
-  const message = error instanceof Error ? error.message : String(error);
-  document.body.dataset.webglError = message;
-  console.error(error);
-}
 
 duplexButton.addEventListener("click", () => {
   void startDuplex();
 });
 playButton.addEventListener("click", () => {
   void startFixture();
+});
+previewButton.addEventListener("click", () => {
+  void startLocalPreview();
 });
 micButton.addEventListener("click", () => {
   void startMic();
@@ -99,17 +94,21 @@ glassesButton.addEventListener("click", () => {
 wireCharacterButtons();
 if (shotMode) {
   document.body.classList.add("shot");
-  requestAnimationFrame(() => {
-    applyShotFromQuery();
-  });
-} else {
+}
+void bootStage().then(() => {
+  if (shotMode) {
+    requestAnimationFrame(() => {
+      applyShotFromQuery();
+    });
+    return;
+  }
   drawIdle();
   applyPreviewFromQuery();
   void loadStatus();
   if (!new URLSearchParams(location.search).get("preview")) {
     requestAnimationFrame(idleTick);
   }
-}
+});
 
 async function loadStatus() {
   const response = await fetch("/api/status");
@@ -117,13 +116,15 @@ async function loadStatus() {
   if (live?.enabled) {
     llmEl.textContent = `${live.model} → ${live.backend} (${live.voice}, ${live.duplex ?? "webrtc"})`;
     statusEl.textContent =
-      "idle. Live duplex for two-way audio, or Play fixture / Use mic for one WAV turn.";
+      "idle. Preview lips, Nod, or Glasses to test the avatar. Live duplex / Play fixture talk to GPT-Live.";
   } else {
     llmEl.textContent = "OPENAI_API_KEY missing on server";
-    statusEl.textContent = "idle. Conversation needs OPENAI_API_KEY.";
+    statusEl.textContent =
+      "idle. Preview lips, Nod, or Glasses work without a key. Conversation needs OPENAI_API_KEY.";
   }
   if (!stage) {
-    statusEl.textContent += " WebGL unavailable; 2D painters active.";
+    statusEl.textContent +=
+      " WebGL unavailable; 2D painters active. Run npm install and restart npm run demo.";
   }
 }
 
@@ -310,6 +311,39 @@ async function startFixture() {
     await converse(new Blob([wav], { type: "audio/wav" }));
   } catch (error) {
     statusEl.textContent = error instanceof Error ? error.message : "fixture failed";
+  }
+}
+
+async function startLocalPreview() {
+  await abortRun();
+  try {
+    statusEl.textContent = "previewing local fixture through the tap";
+    const wav = await fetch("/fixture.wav").then((res) => {
+      if (!res.ok) {
+        throw new Error("fixture.wav missing");
+      }
+      return res.arrayBuffer();
+    });
+    const pcm = decodeBrowserWav(wav);
+    statusEl.textContent = "avatar speaking (local preview)";
+    await playReply(pcm);
+    statusEl.textContent = "preview finished";
+  } catch (error) {
+    statusEl.textContent = error instanceof Error ? error.message : "preview failed";
+  }
+}
+
+async function bootStage() {
+  try {
+    const { createWebglStage } = await import("/lib/webgl-stage.js");
+    stage = createWebglStage(canvas3d);
+  } catch (error) {
+    stage = null;
+    const message = error instanceof Error ? error.message : String(error);
+    document.body.dataset.webglError = message;
+    console.error(error);
+    statusEl.textContent =
+      `Three.js failed to load (${message}). Showing 2D. Run npm install and restart npm run demo.`;
   }
 }
 
