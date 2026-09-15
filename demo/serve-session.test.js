@@ -96,6 +96,18 @@ test("GET /vendor/three/jsm/geometries/RoundedBoxGeometry.js is reachable", asyn
   assert.match(body, /RoundedBoxGeometry/);
 });
 
+test("GET /assets/analyst Superhero Male gltf is the CC0 base mesh", async (t) => {
+  const server = await listen(t);
+  const response = await fetch(url(server, "/assets/analyst/Superhero_Male_FullBody.gltf"));
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /SuperHero_Male/);
+  assert.match(body, /T_Analyst_Broadcast\.png/);
+  const license = await fetch(url(server, "/assets/analyst/License_Standard.txt"));
+  assert.equal(license.status, 200);
+  assert.match(await license.text(), /CC0 1\.0 Universal/);
+});
+
 test("demo.js loads the WebGL stage with a dynamic import", async (t) => {
   const server = await listen(t);
   const html = await (await fetch(url(server, "/"))).text();

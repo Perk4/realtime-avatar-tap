@@ -45,6 +45,9 @@ test("visemes jump like tater mouth heights, not a thin 0-1 sliver", () => {
   assert.ok(open.cavityY > narrow.cavityY);
   assert.ok(wide.cavityY > open.cavityY);
   assert.ok(wide.jaw > open.jaw);
+  assert.ok(wide.jawMorph > open.jawMorph);
+  assert.ok(wide.wideMorph > narrow.wideMorph);
+  assert.ok(narrow.funnel > open.funnel);
   assert.equal(rigPoseFromScene({ lip: "wide", pose: "talk" }).viseme.teeth, true);
 });
 

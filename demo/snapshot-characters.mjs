@@ -175,8 +175,8 @@ async function capturePage(client, pageUrl, outPath, size) {
     mobile: false,
   });
   await send("Page.navigate", { url: pageUrl });
-  await waitReady(send, 12_000);
-  await sleep(600);
+  await waitReady(send, 20_000);
+  await sleep(900);
   const shot = await send("Page.captureScreenshot", { format: "png", fromSurface: true });
   await writeFile(outPath, Buffer.from(shot.data, "base64"));
   await client.send("Target.closeTarget", { targetId: created.targetId });

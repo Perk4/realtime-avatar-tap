@@ -24,6 +24,8 @@ const TYPES = {
   ".css": "text/css; charset=utf-8",
   ".wav": "audio/wav",
   ".png": "image/png",
+  ".gltf": "model/gltf+json",
+  ".bin": "application/octet-stream",
   ".jpg": "image/jpeg",
   ".mp4": "video/mp4",
   ".json": "application/json; charset=utf-8",

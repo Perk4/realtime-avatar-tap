@@ -98,9 +98,7 @@ if (shotMode) {
 }
 void bootStage().then(() => {
   if (shotMode) {
-    requestAnimationFrame(() => {
-      applyShotFromQuery();
-    });
+    applyShotFromQuery();
     return;
   }
   drawIdle();
@@ -338,6 +336,7 @@ async function bootStage() {
   try {
     const { createWebglStage } = await import("/lib/webgl-stage.js");
     stage = createWebglStage(canvas3d);
+    await stage.whenReady();
   } catch (error) {
     stage = null;
     const message = error instanceof Error ? error.message : String(error);
@@ -537,11 +536,10 @@ function paintFrame(block, clockMs) {
   const tick = tickGraph(graph, block, clockMs);
   const scene = composeScene(block, tick);
   const pipeline = characterPipeline(character);
-  const use3d = pipeline === "webgl3d" && stage !== null;
+  const use3d = pipeline === "webgl3d" && stage !== null && stage.isReady();
   canvas.classList.remove("off");
   canvas3d.classList.toggle("off", !use3d);
   if (use3d) {
-    stage.setCharacter(character);
     stage.apply(scene);
     stage.render();
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
@@ -643,6 +641,12 @@ function setCharacter(id) {
   url.searchParams.set("character", character);
   history.replaceState({}, "", url);
   markCharacter();
+  const pending = stage?.setCharacter(character);
+  if (pending && typeof pending.then === "function") {
+    void pending.then(() => {
+      paintFrame(lastBlock, nowMs());
+    });
+  }
   paintFrame(lastBlock, nowMs());
 }
 

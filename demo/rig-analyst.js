@@ -1,156 +1,84 @@
 /**
- * Incredibles-adjacent sports analyst: square head, long neck, gold glasses,
- * polo + 0/1 tie, sitting at the broadcast desk. Procedural primitives, not a film mesh.
+ * Lead 3D analyst: Quaternius Universal Base Characters Superhero Male (CC0),
+ * restyled as a Pixar-proportioned ex-college football player in a broadcast polo.
+ * Morph visemes + Head-bone nod/glasses stay on the animation graph overlay.
  */
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { addBroadcastSet, addFilmLights, disposeObject, skinMaterial, talkingHeadCamera } from "./rig-set.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { applyMorphInfluences, buildMouthMorphs } from "./mouth-morphs.js";
+import {
+  addBroadcastSet,
+  addFilmLights,
+  disposeObject,
+  makeGoldGlasses,
+  talkingHeadCamera,
+} from "./rig-set.js";
 
-export function createAnalystWorld(renderer) {
+const BODY_URL = "/assets/analyst/Superhero_Male_FullBody.gltf";
+const HAIR_URL = "/assets/analyst/Hair_SimpleParted.gltf";
+
+export async function createAnalystWorld(renderer) {
   const scene = new THREE.Scene();
   addFilmLights(scene, renderer);
   addBroadcastSet(scene);
 
-  const camera = talkingHeadCamera([0.4, 1.5, 0.06]);
+  const camera = talkingHeadCamera([0.05, 1.655, 0.05]);
+  const loader = new GLTFLoader();
+  const [bodyGltf, hairGltf] = await Promise.all([loader.loadAsync(BODY_URL), loader.loadAsync(HAIR_URL)]);
 
   const talent = new THREE.Group();
-  talent.position.set(0.4, 0, 0.06);
+  talent.position.set(0.08, 0, 0.04);
   scene.add(talent);
+  talent.add(bodyGltf.scene);
+  talent.add(hairGltf.scene);
 
-  const shirt = new THREE.MeshToonMaterial({ color: 0xf3f6f8, gradientMap: toonRamp() });
-  const cuff = new THREE.MeshToonMaterial({ color: 0x2f6aa8, gradientMap: toonRamp() });
-  const skin = skinMaterial();
-  const skinDeep = skinMaterial(0x6b3a2c);
-
-  const torso = new THREE.Mesh(new RoundedBoxGeometry(0.82, 0.7, 0.4, 6, 0.14), shirt);
-  torso.position.set(0, 0.96, 0);
-  torso.castShadow = true;
-  talent.add(torso);
-
-  const collar = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.08, 0.22, 3, 0.03), shirt);
-  collar.position.set(0, 1.28, 0.08);
-  talent.add(collar);
-
-  for (const sx of [-1, 1]) {
-    const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 16), shirt);
-    shoulder.position.set(sx * 0.42, 1.18, 0.02);
-    shoulder.castShadow = true;
-    talent.add(shoulder);
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.078, 0.36, 6, 12), shirt);
-    arm.position.set(sx * 0.5, 0.9, 0.05);
-    arm.rotation.z = sx * 0.2;
-    talent.add(arm);
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.07, 16), cuff);
-    band.position.set(sx * 0.54, 0.7, 0.06);
-    talent.add(band);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.07, 14, 12), skin);
-    hand.position.set(sx * 0.38, 0.7, 0.42);
-    hand.castShadow = true;
-    talent.add(hand);
+  const bodyMesh = findSkinnedMesh(bodyGltf.scene, "SuperHero_Male") ?? findSkinnedMesh(bodyGltf.scene);
+  const hairMesh = findSkinnedMesh(hairGltf.scene);
+  if (!bodyMesh) {
+    throw new Error("analyst mesh");
   }
 
-  const tie = new THREE.Mesh(
-    new THREE.BoxGeometry(0.095, 0.46, 0.02),
-    new THREE.MeshStandardMaterial({ map: tieTexture(), roughness: 0.42 }),
-  );
-  tie.position.set(0, 0.96, 0.21);
-  talent.add(tie);
+  dressForStudio(bodyGltf.scene);
+  dressHair(hairGltf.scene);
+  installMouthMorphs(bodyMesh);
+  poseBroadcastArms(bodyMesh.skeleton);
+  bodyGltf.scene.traverse(enableShadows);
+  hairGltf.scene.traverse(enableShadows);
 
-  const badge = new THREE.Mesh(
-    new RoundedBoxGeometry(0.16, 0.08, 0.02, 2, 0.01),
-    new THREE.MeshStandardMaterial({ map: badgeTexture(), roughness: 0.35 }),
-  );
-  badge.position.set(0.24, 1.1, 0.21);
-  talent.add(badge);
-
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.11, 0.34, 22), skinDeep);
-  neck.position.set(0, 1.34, 0.02);
-  neck.castShadow = true;
-  talent.add(neck);
-
-  const head = new THREE.Group();
-  head.position.set(0, 1.62, 0.04);
-  talent.add(head);
-
-  const skull = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.5, 0.4, 7, 0.14), skin);
-  skull.castShadow = true;
-  head.add(skull);
-
-  const cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), skinMaterial(0xa8644c));
-  cheekL.position.set(-0.15, -0.04, 0.15);
-  head.add(cheekL);
-  const cheekR = cheekL.clone();
-  cheekR.position.x = 0.15;
-  head.add(cheekR);
-
-  const nose = new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.09, 0.08, 3, 0.02), skinDeep);
-  nose.position.set(0, -0.02, 0.2);
-  head.add(nose);
-
-  const hair = new THREE.Mesh(
-    new RoundedBoxGeometry(0.44, 0.16, 0.38, 4, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x14110f, roughness: 0.68 }),
-  );
-  hair.position.set(0, 0.22, -0.02);
-  head.add(hair);
-
-  const earL = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 10), skinDeep);
-  earL.position.set(-0.25, 0.0, 0);
-  head.add(earL);
-  const earR = earL.clone();
-  earR.position.x = 0.25;
-  head.add(earR);
-  const stud = new THREE.Mesh(
-    new THREE.SphereGeometry(0.012, 8, 8),
-    new THREE.MeshStandardMaterial({ color: 0xf2e6c4, metalness: 1, roughness: 0.2 }),
-  );
-  stud.position.set(0.268, 0.0, 0.012);
-  head.add(stud);
-
-  const brow = new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.6 });
-  for (const sx of [-1, 1]) {
-    const browMesh = new THREE.Mesh(new RoundedBoxGeometry(0.12, 0.025, 0.03, 2, 0.01), brow);
-    browMesh.position.set(sx * 0.11, 0.12, 0.18);
-    browMesh.rotation.z = sx * -0.08;
-    head.add(browMesh);
+  const head = bodyMesh.skeleton.getBoneByName("Head");
+  const hairHead = hairMesh?.skeleton.getBoneByName("Head") ?? null;
+  const spine = bodyMesh.skeleton.getBoneByName("spine_01");
+  if (!head) {
+    throw new Error("analyst head");
   }
 
-  const eyeL = makeEye();
-  eyeL.group.position.set(-0.11, 0.04, 0.18);
-  head.add(eyeL.group);
-  const eyeR = makeEye();
-  eyeR.group.position.set(0.11, 0.04, 0.18);
-  head.add(eyeR.group);
-
-  const glasses = makeGlasses();
-  glasses.position.y = 0.02;
+  const glasses = makeGoldGlasses();
+  glasses.position.set(0, 0.042, 0.078);
+  glasses.scale.setScalar(1.05);
   head.add(glasses);
 
-  const jaw = new THREE.Group();
-  jaw.position.set(0, -0.12, 0.02);
-  head.add(jaw);
-  const jawBone = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.16, 0.26, 5, 0.07), skin);
-  jawBone.position.set(0, -0.06, 0.1);
-  jaw.add(jawBone);
+  const mouth = makeMouthCavity();
+  mouth.group.position.set(0, -0.016, 0.09);
+  head.add(mouth.group);
 
-  const mouth = new THREE.Group();
-  mouth.position.set(0, -0.08, 0.21);
-  head.add(mouth);
-  const cavity = new THREE.Mesh(
-    new THREE.CircleGeometry(0.095, 22),
-    new THREE.MeshStandardMaterial({ color: 0x2a0c0c, roughness: 0.9, side: THREE.DoubleSide }),
-  );
-  mouth.add(cavity);
-  const teeth = new THREE.Mesh(
-    new THREE.CircleGeometry(0.07, 16, 0, Math.PI),
-    new THREE.MeshStandardMaterial({ color: 0xf2ece4, roughness: 0.32, side: THREE.DoubleSide }),
-  );
-  teeth.position.set(0, 0.018, 0.004);
-  teeth.rotation.z = Math.PI;
-  mouth.add(teeth);
+  const badge = makeBadge();
+  const spine3 = bodyMesh.skeleton.getBoneByName("spine_03");
+  if (spine3) {
+    badge.position.set(0.07, 0.04, 0.09);
+    spine3.add(badge);
+  }
 
+  const tie = makeTie();
+  if (spine3) {
+    tie.position.set(0, 0.02, 0.095);
+    spine3.add(tie);
+  }
+
+  const headRest = head.quaternion.clone();
+  const hairRest = hairHead ? hairHead.quaternion.clone() : null;
   const glassesRestY = glasses.position.y;
   const talentRestY = talent.position.y;
+  const spineRest = spine ? spine.quaternion.clone() : null;
 
   return {
     id: "analyst",
@@ -158,17 +86,30 @@ export function createAnalystWorld(renderer) {
     camera,
     apply(pose) {
       const viseme = pose.viseme;
-      talent.position.y = talentRestY + pose.breathe * 0.006 + pose.bounce * 0.0018;
-      head.rotation.x = pose.headPitch;
-      head.rotation.z = pose.talking ? Math.sin(pose.bounce) * 0.03 : 0;
-      jaw.rotation.x = viseme.jaw;
-      cavity.scale.set(viseme.cavityX, viseme.cavityY, 1);
-      teeth.visible = viseme.teeth;
-      teeth.scale.set(viseme.cavityX * 0.85, Math.max(0.4, viseme.cavityY * 0.55), 1);
-      glasses.position.y = glassesRestY - pose.glassesDrop * 0.11;
-      const glance = pose.talking ? 0.012 : 0;
-      eyeL.pupil.position.x = glance;
-      eyeR.pupil.position.x = glance;
+      talent.position.y = talentRestY + pose.breathe * 0.0012 + pose.bounce * 0.0004;
+      head.quaternion.copy(headRest);
+      head.rotateX(pose.headPitch);
+      if (pose.talking) {
+        head.rotateZ(Math.sin(pose.bounce) * 0.025);
+      }
+      if (hairHead && hairRest) {
+        hairHead.quaternion.copy(hairRest);
+        hairHead.rotateX(pose.headPitch);
+        if (pose.talking) {
+          hairHead.rotateZ(Math.sin(pose.bounce) * 0.025);
+        }
+      }
+      if (spine && spineRest) {
+        spine.quaternion.copy(spineRest);
+        spine.rotateX(pose.breathe * 0.004);
+      }
+      applyMorphInfluences(bodyMesh, viseme);
+      mouth.group.visible = viseme.teeth || viseme.jawMorph > 0.12;
+      mouth.cavity.scale.set(viseme.cavityX * 0.55, viseme.cavityY * 0.42, 1);
+      mouth.teeth.visible = viseme.teeth;
+      mouth.teeth.scale.set(viseme.cavityX * 0.42, Math.max(0.35, viseme.cavityY * 0.28), 1);
+      glasses.position.y = glassesRestY - pose.glassesDrop * 0.028;
+      talent.updateMatrixWorld(true);
     },
     dispose() {
       disposeObject(scene);
@@ -176,82 +117,156 @@ export function createAnalystWorld(renderer) {
   };
 }
 
-function makeGlasses() {
-  const glasses = new THREE.Group();
-  const gold = new THREE.MeshStandardMaterial({
-    color: 0xd7b44a,
-    metalness: 0.88,
-    roughness: 0.2,
+function findSkinnedMesh(root, name) {
+  let found = null;
+  root.traverse((obj) => {
+    if (found || !obj.isSkinnedMesh) {
+      return;
+    }
+    if (!name || obj.name === name) {
+      found = obj;
+    }
   });
-  const lens = new THREE.MeshPhysicalMaterial({
-    color: 0x8a4e3a,
-    roughness: 0.12,
-    transmission: 0.18,
-    transparent: true,
-    opacity: 0.32,
-  });
-  const frameL = new THREE.Mesh(new RoundedBoxGeometry(0.13, 0.072, 0.024, 3, 0.016), gold);
-  frameL.position.set(-0.1, 0.055, 0.205);
-  glasses.add(frameL);
-  const frameR = frameL.clone();
-  frameR.position.x = 0.1;
-  glasses.add(frameR);
-  const glassL = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.05), lens);
-  glassL.position.set(-0.1, 0.055, 0.22);
-  glasses.add(glassL);
-  const glassR = glassL.clone();
-  glassR.position.x = 0.1;
-  glasses.add(glassR);
-  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.014, 0.018), gold);
-  bridge.position.set(0, 0.055, 0.205);
-  glasses.add(bridge);
-  const armGL = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.012), gold);
-  armGL.position.set(-0.2, 0.055, 0.15);
-  armGL.rotation.y = 0.52;
-  glasses.add(armGL);
-  const armGR = armGL.clone();
-  armGR.position.x = 0.2;
-  armGR.rotation.y = -0.52;
-  glasses.add(armGR);
-  return glasses;
+  return found;
 }
 
-function makeEye() {
+function installMouthMorphs(mesh) {
+  const position = mesh.geometry.getAttribute("position");
+  const morphs = buildMouthMorphs(position.array);
+  const jaw = new THREE.Float32BufferAttribute(morphs.jaw, 3);
+  jaw.name = "jaw";
+  const wide = new THREE.Float32BufferAttribute(morphs.wide, 3);
+  wide.name = "wide";
+  const funnel = new THREE.Float32BufferAttribute(morphs.funnel, 3);
+  funnel.name = "funnel";
+  mesh.geometry.morphTargetsRelative = true;
+  mesh.geometry.morphAttributes.position = [jaw, wide, funnel];
+  mesh.updateMorphTargets();
+}
+
+function poseBroadcastArms(skeleton) {
+  const left = skeleton.getBoneByName("upperarm_l");
+  const right = skeleton.getBoneByName("upperarm_r");
+  const lowerL = skeleton.getBoneByName("lowerarm_l");
+  const lowerR = skeleton.getBoneByName("lowerarm_r");
+  if (left) {
+    left.rotateZ(0.95);
+  }
+  if (right) {
+    right.rotateZ(-0.95);
+  }
+  if (lowerL) {
+    lowerL.rotateX(0.35);
+  }
+  if (lowerR) {
+    lowerR.rotateX(0.35);
+  }
+}
+
+function dressForStudio(root) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) {
+      return;
+    }
+    const src = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+    if (!src) {
+      return;
+    }
+    const mat = new THREE.MeshPhysicalMaterial({
+      map: src.map ?? null,
+      normalMap: src.normalMap ?? null,
+      roughnessMap: src.roughnessMap ?? src.metalnessMap ?? null,
+      color: src.color ? src.color.clone() : new THREE.Color(0xffffff),
+      roughness: src.name === "MI_Eyes" ? 0.18 : 0.46,
+      metalness: 0,
+      sheen: src.name === "MI_Eyes" ? 0 : 0.42,
+      sheenColor: new THREE.Color(0xffb089),
+      sheenRoughness: 0.62,
+      clearcoat: src.name === "MI_Eyes" ? 0.55 : 0.12,
+      clearcoatRoughness: src.name === "MI_Eyes" ? 0.18 : 0.5,
+      envMapIntensity: 0.85,
+    });
+    if (mat.map) {
+      mat.map.colorSpace = THREE.SRGBColorSpace;
+    }
+    obj.material = mat;
+  });
+}
+
+function dressHair(root) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) {
+      return;
+    }
+    const src = obj.material;
+    obj.material = new THREE.MeshPhysicalMaterial({
+      map: src.map ?? null,
+      normalMap: src.normalMap ?? null,
+      color: new THREE.Color(0x1c1612),
+      roughness: 0.52,
+      metalness: 0,
+      sheen: 0.18,
+      sheenColor: new THREE.Color(0x3a2a22),
+      envMapIntensity: 0.55,
+    });
+    if (obj.material.map) {
+      obj.material.map.colorSpace = THREE.SRGBColorSpace;
+    }
+  });
+}
+
+function enableShadows(obj) {
+  if (obj.isMesh) {
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  }
+}
+
+function makeMouthCavity() {
   const group = new THREE.Group();
-  const white = new THREE.Mesh(
-    new THREE.SphereGeometry(0.048, 16, 12),
-    new THREE.MeshPhysicalMaterial({ color: 0xf4efe8, roughness: 0.22, clearcoat: 0.45 }),
+  const cavity = new THREE.Mesh(
+    new THREE.CircleGeometry(0.028, 22),
+    new THREE.MeshStandardMaterial({ color: 0x2a0c0c, roughness: 0.9, side: THREE.DoubleSide }),
   );
-  group.add(white);
-  const pupil = new THREE.Mesh(
-    new THREE.SphereGeometry(0.021, 12, 10),
-    new THREE.MeshStandardMaterial({ color: 0x1b1410, roughness: 0.32 }),
+  group.add(cavity);
+  const teeth = new THREE.Mesh(
+    new THREE.CircleGeometry(0.02, 16, 0, Math.PI),
+    new THREE.MeshStandardMaterial({ color: 0xf2ece4, roughness: 0.32, side: THREE.DoubleSide }),
   );
-  pupil.position.set(0, 0, 0.03);
-  group.add(pupil);
-  const spark = new THREE.Mesh(
-    new THREE.SphereGeometry(0.007, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xf7f3ea }),
-  );
-  spark.position.set(0.012, 0.012, 0.042);
-  group.add(spark);
-  return { group, pupil };
+  teeth.position.set(0, 0.006, 0.001);
+  teeth.rotation.z = Math.PI;
+  group.add(teeth);
+  group.visible = false;
+  return { group, cavity, teeth };
 }
 
-function toonRamp() {
-  const data = new Uint8Array([80, 80, 80, 255, 150, 150, 150, 255, 220, 220, 220, 255, 255, 255, 255, 255]);
-  const tex = new THREE.DataTexture(data, 4, 1, THREE.RGBAFormat);
-  tex.minFilter = THREE.NearestFilter;
-  tex.magFilter = THREE.NearestFilter;
-  tex.needsUpdate = true;
-  return tex;
+function makeBadge() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 128;
+  const g = canvas.getContext("2d");
+  g.fillStyle = "#163a72";
+  g.fillRect(0, 0, 256, 128);
+  g.fillStyle = "#f4f7fb";
+  g.font = "bold 36px sans-serif";
+  g.fillText("SEC", 78, 52);
+  g.fillStyle = "#e6c84a";
+  g.font = "bold 28px sans-serif";
+  g.fillText("NATION", 48, 100);
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.055, 0.028),
+    new THREE.MeshStandardMaterial({ map, roughness: 0.4 }),
+  );
+  return mesh;
 }
 
-function tieTexture() {
-  const c = document.createElement("canvas");
-  c.width = 64;
-  c.height = 256;
-  const g = c.getContext("2d");
+function makeTie() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 256;
+  const g = canvas.getContext("2d");
   g.fillStyle = "#1d4e9a";
   g.fillRect(0, 0, 64, 256);
   g.fillStyle = "#e6c84a";
@@ -260,26 +275,11 @@ function tieTexture() {
   g.fillText("1", 22, 100);
   g.fillText("0", 20, 150);
   g.fillText("1", 22, 200);
-  const map = new THREE.CanvasTexture(c);
+  const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;
-  return map;
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.028, 0.14, 0.008),
+    new THREE.MeshStandardMaterial({ map, roughness: 0.42 }),
+  );
+  return mesh;
 }
-
-function badgeTexture() {
-  const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 128;
-  const g = c.getContext("2d");
-  g.fillStyle = "#2a5f9a";
-  g.fillRect(0, 0, 256, 128);
-  g.fillStyle = "#f4f7fb";
-  g.font = "bold 36px sans-serif";
-  g.fillText("SEC", 78, 52);
-  g.fillStyle = "#e6c84a";
-  g.font = "bold 28px sans-serif";
-  g.fillText("NATION", 48, 100);
-  const map = new THREE.CanvasTexture(c);
-  map.colorSpace = THREE.SRGBColorSpace;
-  return map;
-}
-

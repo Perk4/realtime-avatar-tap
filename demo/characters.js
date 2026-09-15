@@ -5,7 +5,7 @@ import { paintBlocks } from "./paint-blocks.js";
 export const CHARACTER_IDS = ["analyst", "blocks", "tater"];
 
 export const CHARACTERS = [
-  { id: "analyst", label: "SEC Nation analyst (3D)", pipeline: "webgl3d" },
+  { id: "analyst", label: "SEC Nation analyst (3D mesh)", pipeline: "webgl3d" },
   { id: "blocks", label: "Block head (3D)", pipeline: "webgl3d" },
   { id: "tater", label: "Tater (2D fallback)", pipeline: "canvas2d" },
 ];

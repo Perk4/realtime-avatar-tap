@@ -6,10 +6,46 @@ const MOUTH_OPEN = {
 };
 
 const VISEMES = {
-  closed: { jaw: 0.04, cavityX: 0.92, cavityY: 0.2, cavityZ: 1, teeth: false },
-  narrow: { jaw: 0.12, cavityX: 1.12, cavityY: 0.62, cavityZ: 1, teeth: true },
-  open: { jaw: 0.2, cavityX: 1.28, cavityY: 1.05, cavityZ: 1, teeth: true },
-  wide: { jaw: 0.32, cavityX: 1.42, cavityY: 1.55, cavityZ: 1, teeth: true },
+  closed: {
+    jaw: 0.03,
+    jawMorph: 0.04,
+    wideMorph: 0.02,
+    funnel: 0.05,
+    cavityX: 0.88,
+    cavityY: 0.16,
+    cavityZ: 1,
+    teeth: false,
+  },
+  narrow: {
+    jaw: 0.11,
+    jawMorph: 0.3,
+    wideMorph: 0.12,
+    funnel: 0.74,
+    cavityX: 0.7,
+    cavityY: 0.58,
+    cavityZ: 1.06,
+    teeth: true,
+  },
+  open: {
+    jaw: 0.2,
+    jawMorph: 0.58,
+    wideMorph: 0.4,
+    funnel: 0.2,
+    cavityX: 1.14,
+    cavityY: 0.95,
+    cavityZ: 1,
+    teeth: true,
+  },
+  wide: {
+    jaw: 0.3,
+    jawMorph: 0.88,
+    wideMorph: 0.84,
+    funnel: 0.08,
+    cavityX: 1.4,
+    cavityY: 1.22,
+    cavityZ: 1,
+    teeth: true,
+  },
 };
 
 export function mouthOpenFromLip(lip) {
