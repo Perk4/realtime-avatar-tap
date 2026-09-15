@@ -466,17 +466,18 @@ async function playReply(pcm) {
     windowsEmitted: 0,
   };
   source.start();
-  await pumpPcm(run, pcm, audio.currentTime);
+  await pumpPcm(run, pcm);
 }
 
-function pumpPcm(current, pcm, startedAt) {
+function pumpPcm(current, pcm) {
+  const wallStart = performance.now();
   return new Promise((resolve) => {
     const tick = () => {
       if (run !== current || current.stopped) {
         resolve();
         return;
       }
-      const elapsedMs = (current.audio.currentTime - startedAt) * 1000;
+      const elapsedMs = performance.now() - wallStart;
       const windowsDue = Math.floor(elapsedMs / BLOCK_MS) + 1;
       while (current.windowsEmitted < windowsDue) {
         const offset = current.windowsEmitted * WINDOW_SAMPLES;
