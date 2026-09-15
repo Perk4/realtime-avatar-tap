@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createGraph, tickGraph, triggerGesture } from "./anim-graph.js";
 import { composeScene } from "./characters.js";
-import { mouthOpenFromLip, rigPoseFromScene } from "./rig-pose.js";
+import { mouthOpenFromLip, rigPoseFromScene, visemeFromLip } from "./rig-pose.js";
 import { emitAvatarBlock, ingestAudioChunk, openSession } from "../src/avatar-tap.ts";
 import { WINDOW_SAMPLES } from "./pcm.js";
 
@@ -31,6 +31,21 @@ test("graph nod changes headPitch and leaves lip on the block", () => {
   assert.ok(pose.headPitch < 0);
   assert.ok(pose.mouthOpen > 0);
   assert.equal(pose.talking, true);
+});
+
+test("visemes jump like tater mouth heights, not a thin 0-1 sliver", () => {
+  const closed = visemeFromLip("closed");
+  const narrow = visemeFromLip("narrow");
+  const open = visemeFromLip("open");
+  const wide = visemeFromLip("wide");
+  assert.equal(closed.teeth, false);
+  assert.equal(narrow.teeth, true);
+  assert.ok(narrow.jaw >= 0.1);
+  assert.ok(narrow.cavityY >= 0.5);
+  assert.ok(open.cavityY > narrow.cavityY);
+  assert.ok(wide.cavityY > open.cavityY);
+  assert.ok(wide.jaw > open.jaw);
+  assert.equal(rigPoseFromScene({ lip: "wide", pose: "talk" }).viseme.teeth, true);
 });
 
 test("caller pcm still does not move a reply session", () => {

@@ -85,6 +85,14 @@ export function addBroadcastSet(scene) {
   addMug(scene);
 }
 
+export function talkingHeadCamera(lookAt = [0.4, 1.46, 0.05]) {
+  const camera = new THREE.PerspectiveCamera(28, 640 / 360, 0.08, 40);
+  const [lx, ly, lz] = lookAt;
+  camera.position.set(lx - 0.06, ly + 0.12, 2.28);
+  camera.lookAt(lx, ly - 0.06, lz);
+  return camera;
+}
+
 export function skinMaterial(color = 0x8a4e3a) {
   return new THREE.MeshPhysicalMaterial({
     color,

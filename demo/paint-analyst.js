@@ -98,11 +98,11 @@ function paintHead(g, scene) {
   paintEye(g, -26, -20, scene);
   paintEye(g, 28, -20, scene);
 
-  const mouthW = 18 + scene.mouthH * 0.45;
-  const mouthY = 40;
-  g.fillEllipse(0, mouthY, mouthW, Math.max(4, scene.mouthH * 0.58), "#4a1c18");
+  const mouthW = 22 + scene.mouthH * 0.72;
+  const mouthY = 42;
+  g.fillEllipse(0, mouthY, mouthW, Math.max(6, scene.mouthH * 0.88), "#4a1c18");
   if (scene.mouthH > 12) {
-    g.fillEllipse(0, mouthY + scene.mouthH * 0.08, mouthW * 0.55, scene.mouthH * 0.22, "#8a3a32");
+    g.fillEllipse(0, mouthY + scene.mouthH * 0.1, mouthW * 0.58, scene.mouthH * 0.32, "#8a3a32");
   }
 }
 
@@ -114,7 +114,7 @@ function paintEye(g, x, y, scene) {
 }
 
 function paintGlasses(g, scene) {
-  const drop = (scene.glasses ?? 0) * 10;
+  const drop = (scene.glasses ?? 0) * 22;
   const y = -22 + drop;
   g.fillRoundRect(-48, y - 12, 44, 32, 7, "#d7b44a");
   g.fillRoundRect(-44, y - 8, 36, 24, 5, "#8a4e3a");

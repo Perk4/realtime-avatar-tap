@@ -36,3 +36,10 @@ test("unknown gesture throws", () => {
   const graph = createGraph();
   assert.throws(() => triggerGesture(graph, "dance", 0), /gesture/);
 });
+
+test("nod peaks at a readable head pitch", () => {
+  const graph = createGraph();
+  triggerGesture(graph, "nod", 0);
+  const tick = tickGraph(graph, talk, 340);
+  assert.ok(tick.nod <= -0.28, String(tick.nod));
+});

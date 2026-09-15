@@ -2,20 +2,18 @@
  * Second 3D look: same film-lit studio, faceted clay figure (still PBR, not canvas potato).
  */
 import * as THREE from "three";
-import { addBroadcastSet, addFilmLights, disposeObject, skinMaterial } from "./rig-set.js";
+import { addBroadcastSet, addFilmLights, disposeObject, skinMaterial, talkingHeadCamera } from "./rig-set.js";
 
 export function createBlocksWorld(renderer) {
   const scene = new THREE.Scene();
   addFilmLights(scene, renderer);
   addBroadcastSet(scene);
 
-  const camera = new THREE.PerspectiveCamera(30, 640 / 360, 0.1, 40);
-  camera.position.set(0.02, 1.26, 3.45);
-  camera.lookAt(0.05, 1.12, 0);
+  const camera = talkingHeadCamera([0.4, 1.58, 0.06]);
 
   const talent = new THREE.Group();
-  talent.position.set(0.36, -0.22, 0.08);
-  talent.scale.setScalar(0.78);
+  talent.position.set(0.4, 0.05, 0.06);
+  talent.scale.setScalar(0.82);
   scene.add(talent);
 
   const skin = skinMaterial(0xc47a4a);
@@ -86,12 +84,13 @@ export function createBlocksWorld(renderer) {
     scene,
     camera,
     apply(pose) {
-      talent.position.y = talentRestY + pose.breathe * 0.004 + pose.bounce * 0.0014;
+      const viseme = pose.viseme;
+      talent.position.y = talentRestY + pose.breathe * 0.006 + pose.bounce * 0.0018;
       head.rotation.x = pose.headPitch;
-      jaw.scale.y = 1 + pose.mouthOpen * 2.2;
-      mouth.scale.y = 1 + pose.mouthOpen * 5.5;
-      mouth.position.y = mouthRestY - pose.mouthOpen * 0.035;
-      glasses.position.y = 0.38 - pose.glassesDrop * 0.12;
+      jaw.scale.y = 0.7 + viseme.cavityY;
+      mouth.scale.set(viseme.cavityX, viseme.cavityY * 1.4, 1);
+      mouth.position.y = mouthRestY - viseme.jaw * 0.08;
+      glasses.position.y = 0.38 - pose.glassesDrop * 0.18;
     },
     dispose() {
       disposeObject(scene);
