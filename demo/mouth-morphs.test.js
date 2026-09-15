@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MOUTH_ALBEDO, MOUTH_CENTER, buildMouthMorphs, mouthFalloff, paintMouthViseme } from "./mouth-morphs.js";
+import {
+  MOUTH_ALBEDO,
+  MOUTH_CENTER,
+  NOSE_ALBEDO_MAX_Y,
+  buildMouthMorphs,
+  mouthFalloff,
+  paintMouthViseme,
+  visemePaintEllipse,
+} from "./mouth-morphs.js";
 import { visemeFromLip } from "./rig-pose.js";
 
 test("mouth falloff is 1 at the lip center and 0 far away", () => {
@@ -87,6 +95,31 @@ test("paintMouthViseme draws a cavity into a 2d context", () => {
   assert.ok(Math.abs(ellipse[1] - MOUTH_ALBEDO.cx) < 1, String(ellipse[1]));
 });
 
+test("talk visemes paint below the nose island and never use teeth white", () => {
+  for (const lip of ["narrow", "open", "wide"]) {
+    const face = visemePaintEllipse(visemeFromLip(lip));
+    assert.ok(face, lip);
+    assert.ok(face.cy - face.ry > NOSE_ALBEDO_MAX_Y, `${lip} top ${face.cy - face.ry}`);
+  }
+  const fills = [];
+  const ctx = {
+    save() {},
+    restore() {},
+    beginPath() {},
+    ellipse() {},
+    fill() {
+      fills.push(ctx.fillStyle);
+    },
+    stroke() {},
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 0,
+  };
+  paintMouthViseme(ctx, visemeFromLip("wide"));
+  assert.equal(fills.includes("#f2ece4"), false);
+  assert.ok(fills.every((color) => color.startsWith("#") && color !== "#ffffff"));
+});
+
 test("closed viseme leaves the authored albedo mouth alone", () => {
   const calls = [];
   const ctx = {
@@ -108,6 +141,7 @@ test("closed viseme leaves the authored albedo mouth alone", () => {
   };
   paintMouthViseme(ctx, visemeFromLip("closed"));
   assert.equal(calls.length, 0);
+  assert.equal(visemePaintEllipse(visemeFromLip("closed")), null);
 });
 
 test("viseme table keeps graph-safe channels and readable morph steps", () => {

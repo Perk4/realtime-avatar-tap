@@ -18,17 +18,17 @@ export function addFilmLights(scene, renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = pmrem.fromScene(new RoomEnvironment(), 0.08).texture;
   scene.environment = env;
-  scene.environmentIntensity = 0.42;
+  scene.environmentIntensity = 0.22;
   pmrem.dispose();
 
-  scene.add(new THREE.HemisphereLight(0xe8f0f6, 0x1a140f, 0.34));
+  scene.add(new THREE.HemisphereLight(0xdde6ee, 0x1a140f, 0.16));
 
-  const key = new THREE.DirectionalLight(0xffe8cc, 2.45);
-  key.position.set(-2.2, 4.1, 4.6);
+  const key = new THREE.DirectionalLight(0xffe2c4, 1.35);
+  key.position.set(-2.4, 3.6, 4.2);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
-  key.shadow.radius = 5;
-  key.shadow.blurSamples = 12;
+  key.shadow.radius = 6;
+  key.shadow.blurSamples = 16;
   key.shadow.camera.near = 0.5;
   key.shadow.camera.far = 18;
   key.shadow.camera.left = -3.4;
@@ -39,40 +39,40 @@ export function addFilmLights(scene, renderer) {
   key.shadow.normalBias = 0.02;
   scene.add(key);
 
-  const keySoft = new THREE.RectAreaLight(0xfff0d6, 14, 2.8, 1.6);
-  keySoft.position.set(-1.8, 3.4, 3.6);
+  const keySoft = new THREE.RectAreaLight(0xffefd4, 7.5, 3.2, 1.8);
+  keySoft.position.set(-1.9, 3.1, 3.4);
   keySoft.lookAt(0.1, 1.55, 0.1);
   scene.add(keySoft);
 
-  const fill = new THREE.DirectionalLight(0xa8c6e6, 1.15);
+  const fill = new THREE.DirectionalLight(0x9bb8d4, 0.32);
   fill.position.set(3.4, 2.2, 3.0);
   scene.add(fill);
 
-  const fillSoft = new THREE.RectAreaLight(0xb7cce4, 8, 2.2, 1.3);
+  const fillSoft = new THREE.RectAreaLight(0xb7cce4, 3.2, 2.4, 1.4);
   fillSoft.position.set(2.6, 2.0, 2.4);
   fillSoft.lookAt(0.1, 1.5, 0.1);
   scene.add(fillSoft);
 
-  const rim = new THREE.DirectionalLight(0xf4f8ff, 2.85);
+  const rim = new THREE.DirectionalLight(0xe8eef6, 1.05);
   rim.position.set(0.55, 3.4, -4.6);
   scene.add(rim);
 
-  const face = new THREE.SpotLight(0xffe6c8, 16, 8, 0.38, 0.4, 1.3);
-  face.position.set(-0.35, 2.35, 1.9);
+  const face = new THREE.SpotLight(0xffe6c8, 3.2, 8, 0.48, 0.55, 1.4);
+  face.position.set(-0.45, 2.28, 1.85);
   face.target.position.set(0.08, 1.64, 0.08);
   scene.add(face);
   scene.add(face.target);
 
-  const bounce = new THREE.PointLight(0xff9966, 0.55, 7, 1.5);
+  const bounce = new THREE.PointLight(0xe8a070, 0.38, 6, 1.6);
   bounce.position.set(0.2, 0.82, 1.2);
   scene.add(bounce);
 
-  const screen = new THREE.PointLight(0x3ec3e8, 0.7, 3.4, 2);
+  const screen = new THREE.PointLight(0x3ec3e8, 0.45, 3.2, 2);
   screen.position.set(-0.52, 0.96, 0.72);
   scene.add(screen);
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.14;
+  renderer.toneMappingExposure = 1.02;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -112,11 +112,11 @@ export function addBroadcastSet(scene) {
   addMug(scene);
 }
 
-export function talkingHeadCamera(lookAt = [0, 1.62, 0.08]) {
+export function talkingHeadCamera(lookAt = [0, 1.62, 0.08], distance = 1.32) {
   const camera = new THREE.PerspectiveCamera(28, 640 / 360, 0.08, 40);
   const [lx, ly, lz] = lookAt;
-  camera.position.set(lx + 0.06, ly + 0.06, lz + 1.32);
-  camera.lookAt(lx, ly - 0.04, lz);
+  camera.position.set(lx + 0.06, ly + 0.08, lz + distance);
+  camera.lookAt(lx, ly - 0.06, lz);
   return camera;
 }
 

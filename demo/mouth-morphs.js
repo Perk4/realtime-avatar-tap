@@ -1,13 +1,20 @@
 /**
  * Bind-pose morph deltas for the Quaternius Superhero Male head.
  * Keep the region on the lips/chin so the nose does not turn into a snout.
- * Texture visemes paint the authored mouth island (u≈0.186, v≈0.224 on 1024²).
+ * Texture visemes paint the authored mouth slit only (u≈0.186, v≈0.226–0.235).
+ * The nose island sits at v≈0.179–0.216 — never paint there, and never paint teeth white.
  */
 
 export const MOUTH_CENTER = { x: 0, y: 1.656, z: 0.114 };
 
-/** Albedo mouth island on T_Analyst_Broadcast.png (1024², glTF v-down). */
-export const MOUTH_ALBEDO = { cx: 190, cy: 230, restW: 18, restH: 5 };
+/** Albedo mouth slit on T_Analyst_Broadcast.png (1024², glTF v-down / canvas y-down). */
+export const MOUTH_ALBEDO = { cx: 191, cy: 231, restW: 14, restH: 4 };
+
+/** Inner-mouth cavity island (separate UV, visible only if the jaw opens onto it). */
+export const INNER_MOUTH_ALBEDO = { cx: 128, cy: 706 };
+
+/** Nose island max canvas-y. Face viseme paint must stay strictly below this. */
+export const NOSE_ALBEDO_MAX_Y = 222;
 
 export function mouthFalloff(x, y, z, radius) {
   const dx = x - MOUTH_CENTER.x;
@@ -82,31 +89,45 @@ export function applyMorphInfluences(mesh, viseme) {
   }
 }
 
-export function paintMouthViseme(ctx, viseme) {
+/**
+ * Face-island ellipse for a viseme, or null when the authored slit should stay.
+ * Grown down into the chin so the top never crosses {@link NOSE_ALBEDO_MAX_Y}.
+ */
+export function visemePaintEllipse(viseme) {
   const open = viseme.jawMorph;
   const wide = viseme.wideMorph;
   const funnel = viseme.funnel;
   if (open < 0.12 && wide < 0.15 && funnel < 0.2) {
+    return null;
+  }
+  const rx = 6.5 + wide * 6 + funnel * 1.5;
+  const ry = 1.4 + open * 3.4 + funnel * 0.8;
+  const cy = MOUTH_ALBEDO.cy + ry * 0.58;
+  return { cx: MOUTH_ALBEDO.cx, cy, rx, ry };
+}
+
+export function paintMouthViseme(ctx, viseme) {
+  const face = visemePaintEllipse(viseme);
+  if (!face) {
     return;
   }
-  const { cx, cy } = MOUTH_ALBEDO;
-  const mw = 9 + wide * 11 + funnel * 3;
-  const mh = 2.4 + open * 9 + funnel * 3;
   ctx.save();
   ctx.fillStyle = "#2a1010";
   ctx.beginPath();
-  ctx.ellipse(cx, cy + mh * 0.15, mw, mh, 0, 0, Math.PI * 2);
+  ctx.ellipse(face.cx, face.cy, face.rx, face.ry, 0, 0, Math.PI * 2);
   ctx.fill();
-  if (viseme.teeth && open > 0.2) {
-    ctx.fillStyle = "#f2ece4";
-    ctx.beginPath();
-    ctx.ellipse(cx, cy - mh * 0.22, mw * 0.7, Math.max(1.2, mh * 0.32), 0, 0, Math.PI);
-    ctx.fill();
-  }
-  ctx.strokeStyle = "#8a4e3a";
-  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "#6b3a2c";
+  ctx.lineWidth = 1.1;
   ctx.beginPath();
-  ctx.ellipse(cx, cy + mh * 0.15, mw, mh, 0, 0, Math.PI * 2);
+  ctx.ellipse(face.cx, face.cy, face.rx, face.ry, 0, 0, Math.PI * 2);
   ctx.stroke();
+
+  const inner = INNER_MOUTH_ALBEDO;
+  const innerRx = 8 + viseme.wideMorph * 5;
+  const innerRy = 4 + viseme.jawMorph * 6;
+  ctx.fillStyle = "#1a0808";
+  ctx.beginPath();
+  ctx.ellipse(inner.cx, inner.cy, innerRx, innerRy, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }

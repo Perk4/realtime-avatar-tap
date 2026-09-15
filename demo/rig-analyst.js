@@ -22,12 +22,12 @@ export async function createAnalystWorld(renderer) {
   addFilmLights(scene, renderer);
   addBroadcastSet(scene);
 
-  const camera = talkingHeadCamera([0, 1.62, 0.08]);
+  const camera = talkingHeadCamera([0.06, 1.58, 0.08], 1.46);
   const loader = new GLTFLoader();
   const [bodyGltf, hairGltf] = await Promise.all([loader.loadAsync(BODY_URL), loader.loadAsync(HAIR_URL)]);
 
   const talent = new THREE.Group();
-  talent.position.set(0.08, 0, 0.04);
+  talent.position.set(0.08, -0.12, 0.1);
   scene.add(talent);
   talent.add(bodyGltf.scene);
   talent.add(hairGltf.scene);
@@ -37,24 +37,39 @@ export async function createAnalystWorld(renderer) {
     findMeshByMaterial(bodyGltf.scene, "MI_Superhero_Male") ??
     findSkinnedMesh(bodyGltf.scene);
   const hairMesh = findSkinnedMesh(hairGltf.scene);
+  const eyesMesh = findSkinnedMesh(bodyGltf.scene, "Eyes");
+  const browMesh = findSkinnedMesh(bodyGltf.scene, "Eyebrows");
   if (!bodyMesh) {
     throw new Error("analyst mesh");
   }
 
+  shareSkeleton(bodyMesh, [eyesMesh, browMesh]);
+  seatEyeballs(eyesMesh);
   dressForStudio(bodyGltf.scene);
   dressHair(hairGltf.scene);
   installMouthMorphs(bodyMesh);
   const visemeAlbedo = attachVisemeAlbedo(bodyMesh);
-  poseBroadcastArms(bodyMesh);
+  const armPose = bindSeatedArms(bodyMesh.skeleton);
   bodyGltf.scene.traverse(enableShadows);
   hairGltf.scene.traverse(enableShadows);
+  if (eyesMesh) {
+    eyesMesh.renderOrder = 2;
+    eyesMesh.frustumCulled = false;
+    eyesMesh.castShadow = false;
+  }
 
-  const head = bodyMesh.skeleton.getBoneByName("Head");
-  const hairHead = hairMesh?.skeleton.getBoneByName("Head") ?? null;
-  const spine = bodyMesh.skeleton.getBoneByName("spine_01");
-  if (!head) {
+  const headBones = uniqueBones([
+    bodyMesh.skeleton.getBoneByName("Head"),
+    hairMesh?.skeleton.getBoneByName("Head") ?? null,
+    eyesMesh?.skeleton.getBoneByName("Head") ?? null,
+    browMesh?.skeleton.getBoneByName("Head") ?? null,
+  ]);
+  if (headBones.length === 0) {
     throw new Error("analyst head");
   }
+  const head = headBones[0];
+  const spine = bodyMesh.skeleton.getBoneByName("spine_01");
+  const spine2 = bodyMesh.skeleton.getBoneByName("spine_02");
 
   const glasses = makeGoldGlasses();
   // Head-local: eyes sit near (0, 0.102, 0.143) in bind pose.
@@ -75,11 +90,12 @@ export async function createAnalystWorld(renderer) {
     spine3.add(tie);
   }
 
-  const headRest = head.quaternion.clone();
-  const hairRest = hairHead ? hairHead.quaternion.clone() : null;
+  const headRests = headBones.map((bone) => bone.quaternion.clone());
   const glassesRestY = glasses.position.y;
   const talentRestY = talent.position.y;
   const spineRest = spine ? spine.quaternion.clone() : null;
+  const spine2Rest = spine2 ? spine2.quaternion.clone() : null;
+  const eyeMap = eyesMesh?.material?.map ?? null;
 
   return {
     id: "analyst",
@@ -88,27 +104,32 @@ export async function createAnalystWorld(renderer) {
     apply(pose) {
       const viseme = pose.viseme;
       talent.position.y = talentRestY + pose.breathe * 0.0012 + pose.bounce * 0.0004;
-      head.quaternion.copy(headRest);
-      head.rotateX(pose.headPitch);
-      if (pose.talking) {
-        head.rotateZ(Math.sin(pose.bounce) * 0.025);
-      }
-      if (hairHead && hairRest) {
-        hairHead.quaternion.copy(hairRest);
-        hairHead.rotateX(pose.headPitch);
-        if (pose.talking) {
-          hairHead.rotateZ(Math.sin(pose.bounce) * 0.025);
-        }
+      const talkZ = pose.talking ? Math.sin(pose.bounce) * 0.025 : 0;
+      for (let i = 0; i < headBones.length; i++) {
+        const bone = headBones[i];
+        bone.quaternion.copy(headRests[i]);
+        bone.rotateX(pose.headPitch);
+        bone.rotateZ(talkZ);
       }
       if (spine && spineRest) {
         spine.quaternion.copy(spineRest);
-        spine.rotateX(pose.breathe * 0.004);
+        spine.rotateX(pose.breathe * 0.004 + 0.12);
       }
+      if (spine2 && spine2Rest) {
+        spine2.quaternion.copy(spine2Rest);
+        spine2.rotateX(0.08);
+      }
+      applySeatedArms(bodyMesh.skeleton, armPose, pose);
       applyMorphInfluences(bodyMesh, viseme);
       visemeAlbedo?.paint(viseme);
+      if (eyeMap) {
+        eyeMap.offset.x = pose.talking ? Math.sin(pose.bounce) * 0.028 : 0;
+      }
       glasses.position.y = glassesRestY - pose.glassesDrop * 0.028;
       glasses.rotation.x = pose.glassesDrop * 0.12;
       talent.updateMatrixWorld(true);
+      bodyMesh.skeleton.update();
+      hairMesh?.skeleton.update();
     },
     dispose() {
       disposeObject(scene);
@@ -159,40 +180,91 @@ function installMouthMorphs(mesh) {
   mesh.updateMorphTargets();
 }
 
-function poseBroadcastArms(bodyMesh) {
-  bodyMesh.updateMatrixWorld(true);
-  const skeleton = bodyMesh.skeleton;
-  const left = skeleton.getBoneByName("upperarm_l");
-  const right = skeleton.getBoneByName("upperarm_r");
-  const lowerL = skeleton.getBoneByName("lowerarm_l");
-  const lowerR = skeleton.getBoneByName("lowerarm_r");
-  if (left) {
-    aimBoneY(left, new THREE.Vector3(0.18, -1, 0.22));
+function uniqueBones(bones) {
+  const seen = new Set();
+  const out = [];
+  for (const bone of bones) {
+    if (!bone || seen.has(bone)) {
+      continue;
+    }
+    seen.add(bone);
+    out.push(bone);
   }
-  if (right) {
-    aimBoneY(right, new THREE.Vector3(-0.18, -1, 0.22));
-  }
-  bodyMesh.updateMatrixWorld(true);
-  if (lowerL) {
-    aimBoneY(lowerL, new THREE.Vector3(0.12, -0.25, 0.85));
-  }
-  if (lowerR) {
-    aimBoneY(lowerR, new THREE.Vector3(-0.12, -0.25, 0.85));
-  }
-  bodyMesh.updateMatrixWorld(true);
+  return out;
 }
 
-function aimBoneY(bone, worldTargetDir) {
-  bone.updateWorldMatrix(true, false);
-  const current = new THREE.Vector3(0, 1, 0).transformDirection(bone.matrixWorld).normalize();
-  const target = worldTargetDir.clone().normalize();
-  const axis = new THREE.Vector3().crossVectors(current, target);
-  const axisLen = axis.length();
-  if (axisLen < 1e-5) {
+function shareSkeleton(bodyMesh, others) {
+  for (const mesh of others) {
+    if (!mesh || mesh.skeleton === bodyMesh.skeleton) {
+      continue;
+    }
+    mesh.bind(bodyMesh.skeleton, mesh.bindMatrix);
+  }
+}
+
+function seatEyeballs(mesh) {
+  if (!mesh) {
     return;
   }
-  axis.divideScalar(axisLen);
-  bone.rotateOnWorldAxis(axis, current.angleTo(target));
+  // Bind-pose eyeballs sit behind the face surface (zmax 0.081 vs socket ~0.089).
+  mesh.geometry.translate(0, 0, 0.02);
+  mesh.geometry.computeBoundingBox();
+  mesh.geometry.computeBoundingSphere();
+}
+
+const ARM_NAMES = [
+  "clavicle_l",
+  "clavicle_r",
+  "upperarm_l",
+  "upperarm_r",
+  "lowerarm_l",
+  "lowerarm_r",
+  "hand_l",
+  "hand_r",
+];
+
+const ARM_DELTA = {
+  clavicle_l: [0.1, 0.14, 0.2],
+  clavicle_r: [0.1, -0.14, -0.2],
+  upperarm_l: [0.62, 0.42, 1.28],
+  upperarm_r: [0.62, -0.42, -1.28],
+  lowerarm_l: [1.18, 0.18, 0.28],
+  lowerarm_r: [1.18, -0.18, -0.28],
+  hand_l: [0.22, 0.32, 0.16],
+  hand_r: [0.22, -0.32, -0.16],
+};
+
+function eulerDelta(xyz) {
+  return new THREE.Quaternion().setFromEuler(new THREE.Euler(xyz[0], xyz[1], xyz[2], "XYZ"));
+}
+
+function bindSeatedArms(skeleton) {
+  const rest = {};
+  const seated = {};
+  for (const name of ARM_NAMES) {
+    const bone = skeleton.getBoneByName(name);
+    if (!bone) {
+      continue;
+    }
+    rest[name] = bone.quaternion.clone();
+    seated[name] = rest[name].clone().multiply(eulerDelta(ARM_DELTA[name]));
+  }
+  return { rest, seated };
+}
+
+function applySeatedArms(skeleton, armPose, pose) {
+  const breathe = pose.breathe * 0.00035;
+  for (const name of ARM_NAMES) {
+    const bone = skeleton.getBoneByName(name);
+    const target = armPose.seated[name];
+    if (!bone || !target) {
+      continue;
+    }
+    bone.quaternion.copy(target);
+    if (name.startsWith("clavicle")) {
+      bone.rotateX(breathe);
+    }
+  }
 }
 
 function attachVisemeAlbedo(mesh) {
@@ -238,14 +310,14 @@ function dressForStudio(root) {
       normalMap: src.normalMap ?? null,
       roughnessMap: src.roughnessMap ?? src.metalnessMap ?? null,
       color: src.color ? src.color.clone() : new THREE.Color(0xffffff),
-      roughness: src.name === "MI_Eyes" ? 0.18 : 0.46,
+      roughness: src.name === "MI_Eyes" ? 0.12 : 0.48,
       metalness: 0,
-      sheen: src.name === "MI_Eyes" ? 0 : 0.42,
+      sheen: src.name === "MI_Eyes" ? 0 : 0.38,
       sheenColor: new THREE.Color(0xffb089),
       sheenRoughness: 0.62,
-      clearcoat: src.name === "MI_Eyes" ? 0.55 : 0.12,
-      clearcoatRoughness: src.name === "MI_Eyes" ? 0.18 : 0.5,
-      envMapIntensity: 0.85,
+      clearcoat: src.name === "MI_Eyes" ? 0.72 : 0.1,
+      clearcoatRoughness: src.name === "MI_Eyes" ? 0.12 : 0.52,
+      envMapIntensity: src.name === "MI_Eyes" ? 1.15 : 0.7,
     });
     if (mat.map) {
       mat.map.colorSpace = THREE.SRGBColorSpace;
