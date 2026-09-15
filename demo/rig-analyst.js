@@ -22,7 +22,7 @@ export async function createAnalystWorld(renderer) {
   addFilmLights(scene, renderer);
   addBroadcastSet(scene);
 
-  const camera = talkingHeadCamera([0.06, 1.58, 0.08], 1.46);
+  const camera = talkingHeadCamera([0.06, 1.56, 0.08], 1.48);
   const loader = new GLTFLoader();
   const [bodyGltf, hairGltf] = await Promise.all([loader.loadAsync(BODY_URL), loader.loadAsync(HAIR_URL)]);
 
@@ -73,9 +73,18 @@ export async function createAnalystWorld(renderer) {
 
   const glasses = makeGoldGlasses();
   // Head-local: eyes sit near (0, 0.102, 0.143) in bind pose.
-  glasses.position.set(0, 0.104, 0.152);
-  glasses.scale.setScalar(1.42);
+  glasses.position.set(0, 0.09, 0.146);
+  glasses.scale.setScalar(1.18);
   head.add(glasses);
+
+  const cavity = new THREE.Mesh(
+    new THREE.CircleGeometry(0.012, 20),
+    new THREE.MeshStandardMaterial({ color: 0x1a0c0c, roughness: 0.96, side: THREE.DoubleSide }),
+  );
+  // Head-local: glasses sit near (0, 0.09, 0.146); mouth is below the nose, not on it.
+  cavity.position.set(0, 0.046, 0.136);
+  cavity.visible = false;
+  head.add(cavity);
 
   const badge = makeBadge();
   const spine3 = bodyMesh.skeleton.getBoneByName("spine_03");
@@ -120,8 +129,11 @@ export async function createAnalystWorld(renderer) {
         spine2.rotateX(0.08);
       }
       applySeatedArms(bodyMesh.skeleton, armPose, pose);
+      copySkeletonPose(bodyMesh.skeleton, hairMesh?.skeleton);
       applyMorphInfluences(bodyMesh, viseme);
       visemeAlbedo?.paint(viseme);
+      cavity.visible = viseme.jawMorph > 0.18;
+      cavity.scale.set(0.9 + viseme.wideMorph * 0.55, 0.42 + viseme.jawMorph * 0.7, 1);
       if (eyeMap) {
         eyeMap.offset.x = pose.talking ? Math.sin(pose.bounce) * 0.028 : 0;
       }
@@ -193,6 +205,18 @@ function uniqueBones(bones) {
   return out;
 }
 
+function copySkeletonPose(fromSkeleton, toSkeleton) {
+  if (!fromSkeleton || !toSkeleton || fromSkeleton === toSkeleton) {
+    return;
+  }
+  for (const bone of toSkeleton.bones) {
+    const src = fromSkeleton.getBoneByName(bone.name);
+    if (src) {
+      bone.quaternion.copy(src.quaternion);
+    }
+  }
+}
+
 function shareSkeleton(bodyMesh, others) {
   for (const mesh of others) {
     if (!mesh || mesh.skeleton === bodyMesh.skeleton) {
@@ -224,14 +248,14 @@ const ARM_NAMES = [
 ];
 
 const ARM_DELTA = {
-  clavicle_l: [0.1, 0.14, 0.2],
-  clavicle_r: [0.1, -0.14, -0.2],
-  upperarm_l: [0.62, 0.42, 1.28],
-  upperarm_r: [0.62, -0.42, -1.28],
-  lowerarm_l: [1.18, 0.18, 0.28],
-  lowerarm_r: [1.18, -0.18, -0.28],
-  hand_l: [0.22, 0.32, 0.16],
-  hand_r: [0.22, -0.32, -0.16],
+  clavicle_l: [0, 0, 0.12],
+  clavicle_r: [0, 0, -0.12],
+  upperarm_l: [0, 0, -1.42],
+  upperarm_r: [0, 0, 1.42],
+  lowerarm_l: [1.05, 0, 0],
+  lowerarm_r: [1.05, 0, 0],
+  hand_l: [0.25, 0.2, 0],
+  hand_r: [0.25, -0.2, 0],
 };
 
 function eulerDelta(xyz) {
@@ -305,19 +329,31 @@ function dressForStudio(root) {
     if (!src) {
       return;
     }
+    if (obj.name === "Eyebrows") {
+      obj.material = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(0x1a1410),
+        roughness: 0.58,
+        metalness: 0,
+        sheen: 0.12,
+        sheenColor: new THREE.Color(0x3a2a22),
+        envMapIntensity: 0.4,
+      });
+      return;
+    }
+    const isEyes = src.name === "MI_Eyes";
     const mat = new THREE.MeshPhysicalMaterial({
       map: src.map ?? null,
       normalMap: src.normalMap ?? null,
       roughnessMap: src.roughnessMap ?? src.metalnessMap ?? null,
       color: src.color ? src.color.clone() : new THREE.Color(0xffffff),
-      roughness: src.name === "MI_Eyes" ? 0.12 : 0.48,
+      roughness: isEyes ? 0.12 : 0.48,
       metalness: 0,
-      sheen: src.name === "MI_Eyes" ? 0 : 0.38,
+      sheen: isEyes ? 0 : 0.38,
       sheenColor: new THREE.Color(0xffb089),
       sheenRoughness: 0.62,
-      clearcoat: src.name === "MI_Eyes" ? 0.72 : 0.1,
-      clearcoatRoughness: src.name === "MI_Eyes" ? 0.12 : 0.52,
-      envMapIntensity: src.name === "MI_Eyes" ? 1.15 : 0.7,
+      clearcoat: isEyes ? 0.72 : 0.1,
+      clearcoatRoughness: isEyes ? 0.12 : 0.52,
+      envMapIntensity: isEyes ? 1.15 : 0.7,
     });
     if (mat.map) {
       mat.map.colorSpace = THREE.SRGBColorSpace;

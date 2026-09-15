@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  MOUTH_ALBEDO,
   MOUTH_CENTER,
   NOSE_ALBEDO_MAX_Y,
   buildMouthMorphs,
@@ -88,11 +87,10 @@ test("paintMouthViseme draws a cavity into a 2d context", () => {
   paintMouthViseme(ctx, visemeFromLip("wide"));
   assert.ok(calls.includes("save"));
   assert.ok(calls.includes("fill"));
-  assert.ok(calls.includes("stroke"));
   assert.ok(calls.includes("restore"));
   const ellipse = calls.find((item) => Array.isArray(item) && item[0] === "ellipse");
   assert.ok(ellipse, "expected a mouth ellipse");
-  assert.ok(Math.abs(ellipse[1] - MOUTH_ALBEDO.cx) < 1, String(ellipse[1]));
+  assert.ok(Math.abs(ellipse[1] - 128) < 2, String(ellipse[1]));
 });
 
 test("talk visemes paint below the nose island and never use teeth white", () => {

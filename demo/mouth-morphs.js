@@ -54,10 +54,10 @@ export function buildMouthMorphs(positions) {
     const upper = y >= MOUTH_CENTER.y ? 1 : 0;
     const side = x === 0 ? 0 : Math.sign(x);
 
-    jaw[i * 3 + 1] = -0.012 * chin * lower - 0.006 * lip * lower + 0.004 * lip * upper;
-    jaw[i * 3 + 2] = -0.004 * lip;
+    jaw[i * 3 + 1] = -0.016 * chin * lower - 0.008 * lip * lower + 0.005 * lip * upper;
+    jaw[i * 3 + 2] = -0.005 * lip;
 
-    lift[i * 3 + 1] = 0.01 * lip * upper;
+    lift[i * 3 + 1] = 0.012 * lip * upper;
     lift[i * 3 + 2] = -0.003 * lip * upper;
 
     wide[i * 3] = 0.01 * side * lip;
@@ -112,16 +112,6 @@ export function paintMouthViseme(ctx, viseme) {
     return;
   }
   ctx.save();
-  ctx.fillStyle = "#2a1010";
-  ctx.beginPath();
-  ctx.ellipse(face.cx, face.cy, face.rx, face.ry, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#6b3a2c";
-  ctx.lineWidth = 1.1;
-  ctx.beginPath();
-  ctx.ellipse(face.cx, face.cy, face.rx, face.ry, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
   const inner = INNER_MOUTH_ALBEDO;
   const innerRx = 8 + viseme.wideMorph * 5;
   const innerRy = 4 + viseme.jawMorph * 6;

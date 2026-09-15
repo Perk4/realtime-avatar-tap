@@ -20,7 +20,7 @@ Ready Player Me’s public avatar CDN was discontinued (Jan 2026), so this pack 
 - Hair tinted darker for an on-air look.
 - Gold glasses, 0/1 tie, and SEC Nation badge parented to Head / spine bones.
 - Studio key (warm area + directional with soft PCF shadows), cool fill, back rim.
-- Lip shapes: the pack has **no** facial blendshapes. `demo/mouth-morphs.js` authors tight jaw / wide / funnel / lift deltas on lip verts and paints a dark cavity on the authored mouth slit only (canvas y stays below the nose island). No teeth-white on the face albedo. `visemeFromLip` still maps tap `lip` values. Nod and glasses still come from `tickGraph` and never write `lip`. The Eyes / Eyebrows meshes share the body Head bone so gaze nods with the skull.
+- Lip shapes: the pack has **no** facial blendshapes. `demo/mouth-morphs.js` authors tight jaw / wide / funnel / lift deltas on lip verts. Face albedo paint never uses teeth-white and never covers the nose island; a small Head-local cavity mesh opens on talk. `visemeFromLip` still maps tap `lip` values. Nod and glasses still come from `tickGraph` and never write `lip`. The Eyes / Eyebrows meshes share the body Head bone so gaze nods with the skull.
 
 ## Runtime paths
 
