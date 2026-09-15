@@ -16,11 +16,11 @@ Ready Player Me’s public avatar CDN was discontinued (Jan 2026), so this pack 
 
 ## What we changed
 
-- Albedo restyle `T_Analyst_Broadcast.png`: navy/gold broadcast polo over the original bodysuit islands. Face, eyes, and skin maps are unchanged.
+- Albedo restyle `T_Analyst_Broadcast.png`: navy/gold broadcast polo (front torso, sleeves, and gold placket) over the original gray bodysuit islands. Face, eyes, and skin maps are unchanged.
 - Hair tinted darker for an on-air look.
 - Gold glasses, 0/1 tie, and SEC Nation badge parented to Head / spine bones.
 - Studio key (warm area + directional with soft PCF shadows), cool fill, back rim.
-- Lip shapes: the pack has **no** facial blendshapes. `demo/mouth-morphs.js` authors jaw / wide / funnel / lift deltas on the head verts (Oculus-like buckets from `lip`). `visemeFromLip` still maps tap `lip` values. Nod and glasses still come from `tickGraph` and never write `lip`.
+- Lip shapes: the pack has **no** facial blendshapes. `demo/mouth-morphs.js` authors tight jaw / wide / funnel / lift deltas on lip verts and paints the mouth island on the albedo. `visemeFromLip` still maps tap `lip` values. Nod and glasses still come from `tickGraph` and never write `lip`.
 
 ## Runtime paths
 

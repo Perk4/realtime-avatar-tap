@@ -5,7 +5,7 @@
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { applyMorphInfluences, buildMouthMorphs } from "./mouth-morphs.js";
+import { applyMorphInfluences, buildMouthMorphs, paintMouthViseme } from "./mouth-morphs.js";
 import {
   addBroadcastSet,
   addFilmLights,
@@ -22,7 +22,7 @@ export async function createAnalystWorld(renderer) {
   addFilmLights(scene, renderer);
   addBroadcastSet(scene);
 
-  const camera = talkingHeadCamera([0.05, 1.655, 0.05]);
+  const camera = talkingHeadCamera([0, 1.62, 0.08]);
   const loader = new GLTFLoader();
   const [bodyGltf, hairGltf] = await Promise.all([loader.loadAsync(BODY_URL), loader.loadAsync(HAIR_URL)]);
 
@@ -32,7 +32,10 @@ export async function createAnalystWorld(renderer) {
   talent.add(bodyGltf.scene);
   talent.add(hairGltf.scene);
 
-  const bodyMesh = findSkinnedMesh(bodyGltf.scene, "SuperHero_Male") ?? findSkinnedMesh(bodyGltf.scene);
+  const bodyMesh =
+    findSkinnedMesh(bodyGltf.scene, "SuperHero_Male") ??
+    findMeshByMaterial(bodyGltf.scene, "MI_Superhero_Male") ??
+    findSkinnedMesh(bodyGltf.scene);
   const hairMesh = findSkinnedMesh(hairGltf.scene);
   if (!bodyMesh) {
     throw new Error("analyst mesh");
@@ -41,7 +44,8 @@ export async function createAnalystWorld(renderer) {
   dressForStudio(bodyGltf.scene);
   dressHair(hairGltf.scene);
   installMouthMorphs(bodyMesh);
-  poseBroadcastArms(bodyMesh.skeleton);
+  const visemeAlbedo = attachVisemeAlbedo(bodyMesh);
+  poseBroadcastArms(bodyMesh);
   bodyGltf.scene.traverse(enableShadows);
   hairGltf.scene.traverse(enableShadows);
 
@@ -53,13 +57,10 @@ export async function createAnalystWorld(renderer) {
   }
 
   const glasses = makeGoldGlasses();
-  glasses.position.set(0, 0.042, 0.078);
-  glasses.scale.setScalar(1.05);
+  // Head-local: eyes sit near (0, 0.102, 0.143) in bind pose.
+  glasses.position.set(0, 0.104, 0.152);
+  glasses.scale.setScalar(1.42);
   head.add(glasses);
-
-  const mouth = makeMouthCavity();
-  mouth.group.position.set(0, -0.018, 0.1);
-  head.add(mouth.group);
 
   const badge = makeBadge();
   const spine3 = bodyMesh.skeleton.getBoneByName("spine_03");
@@ -104,11 +105,9 @@ export async function createAnalystWorld(renderer) {
         spine.rotateX(pose.breathe * 0.004);
       }
       applyMorphInfluences(bodyMesh, viseme);
-      mouth.group.visible = viseme.teeth || viseme.jawMorph > 0.12;
-      mouth.cavity.scale.set(viseme.cavityX * 0.7, viseme.cavityY * 0.55, 1);
-      mouth.teeth.visible = viseme.teeth;
-      mouth.teeth.scale.set(viseme.cavityX * 0.52, Math.max(0.4, viseme.cavityY * 0.36), 1);
+      visemeAlbedo?.paint(viseme);
       glasses.position.y = glassesRestY - pose.glassesDrop * 0.028;
+      glasses.rotation.x = pose.glassesDrop * 0.12;
       talent.updateMatrixWorld(true);
     },
     dispose() {
@@ -124,6 +123,20 @@ function findSkinnedMesh(root, name) {
       return;
     }
     if (!name || obj.name === name) {
+      found = obj;
+    }
+  });
+  return found;
+}
+
+function findMeshByMaterial(root, materialName) {
+  let found = null;
+  root.traverse((obj) => {
+    if (found || !obj.isSkinnedMesh) {
+      return;
+    }
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    if (mats.some((mat) => mat && mat.name === materialName)) {
       found = obj;
     }
   });
@@ -146,23 +159,69 @@ function installMouthMorphs(mesh) {
   mesh.updateMorphTargets();
 }
 
-function poseBroadcastArms(skeleton) {
+function poseBroadcastArms(bodyMesh) {
+  bodyMesh.updateMatrixWorld(true);
+  const skeleton = bodyMesh.skeleton;
   const left = skeleton.getBoneByName("upperarm_l");
   const right = skeleton.getBoneByName("upperarm_r");
   const lowerL = skeleton.getBoneByName("lowerarm_l");
   const lowerR = skeleton.getBoneByName("lowerarm_r");
   if (left) {
-    left.rotateZ(0.95);
+    aimBoneY(left, new THREE.Vector3(0.18, -1, 0.22));
   }
   if (right) {
-    right.rotateZ(-0.95);
+    aimBoneY(right, new THREE.Vector3(-0.18, -1, 0.22));
   }
+  bodyMesh.updateMatrixWorld(true);
   if (lowerL) {
-    lowerL.rotateX(0.35);
+    aimBoneY(lowerL, new THREE.Vector3(0.12, -0.25, 0.85));
   }
   if (lowerR) {
-    lowerR.rotateX(0.35);
+    aimBoneY(lowerR, new THREE.Vector3(-0.12, -0.25, 0.85));
   }
+  bodyMesh.updateMatrixWorld(true);
+}
+
+function aimBoneY(bone, worldTargetDir) {
+  bone.updateWorldMatrix(true, false);
+  const current = new THREE.Vector3(0, 1, 0).transformDirection(bone.matrixWorld).normalize();
+  const target = worldTargetDir.clone().normalize();
+  const axis = new THREE.Vector3().crossVectors(current, target);
+  const axisLen = axis.length();
+  if (axisLen < 1e-5) {
+    return;
+  }
+  axis.divideScalar(axisLen);
+  bone.rotateOnWorldAxis(axis, current.angleTo(target));
+}
+
+function attachVisemeAlbedo(mesh) {
+  const src = mesh.material?.map;
+  const image = src?.image;
+  if (!src || !image || !image.width) {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.flipY = src.flipY;
+  tex.wrapS = src.wrapS;
+  tex.wrapT = src.wrapT;
+  mesh.material.map = tex;
+  mesh.material.needsUpdate = true;
+  return {
+    paint(viseme) {
+      ctx.drawImage(image, 0, 0);
+      paintMouthViseme(ctx, viseme);
+      tex.needsUpdate = true;
+    },
+  };
 }
 
 function dressForStudio(root) {
@@ -222,25 +281,6 @@ function enableShadows(obj) {
     obj.castShadow = true;
     obj.receiveShadow = true;
   }
-}
-
-function makeMouthCavity() {
-  const group = new THREE.Group();
-  const cavity = new THREE.Mesh(
-    new THREE.CircleGeometry(0.042, 24),
-    new THREE.MeshStandardMaterial({ color: 0x1a0808, roughness: 0.92, side: THREE.DoubleSide }),
-  );
-  group.add(cavity);
-  const teeth = new THREE.Mesh(
-    new THREE.CircleGeometry(0.03, 16, 0, Math.PI),
-    new THREE.MeshStandardMaterial({ color: 0xf2ece4, roughness: 0.32, side: THREE.DoubleSide }),
-  );
-  teeth.position.set(0, 0.008, 0.0015);
-  teeth.rotation.z = Math.PI;
-  group.add(teeth);
-  group.position.set(0, -0.018, 0.1);
-  group.visible = false;
-  return { group, cavity, teeth };
 }
 
 function makeBadge() {

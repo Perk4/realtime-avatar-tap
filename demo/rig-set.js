@@ -18,12 +18,12 @@ export function addFilmLights(scene, renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = pmrem.fromScene(new RoomEnvironment(), 0.08).texture;
   scene.environment = env;
-  scene.environmentIntensity = 0.48;
+  scene.environmentIntensity = 0.42;
   pmrem.dispose();
 
   scene.add(new THREE.HemisphereLight(0xe8f0f6, 0x1a140f, 0.34));
 
-  const key = new THREE.DirectionalLight(0xffe8cc, 2.85);
+  const key = new THREE.DirectionalLight(0xffe8cc, 2.45);
   key.position.set(-2.2, 4.1, 4.6);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -72,7 +72,7 @@ export function addFilmLights(scene, renderer) {
   scene.add(screen);
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.22;
+  renderer.toneMappingExposure = 1.14;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -112,11 +112,11 @@ export function addBroadcastSet(scene) {
   addMug(scene);
 }
 
-export function talkingHeadCamera(lookAt = [0.12, 1.64, 0.06]) {
-  const camera = new THREE.PerspectiveCamera(26, 640 / 360, 0.08, 40);
+export function talkingHeadCamera(lookAt = [0, 1.62, 0.08]) {
+  const camera = new THREE.PerspectiveCamera(28, 640 / 360, 0.08, 40);
   const [lx, ly, lz] = lookAt;
-  camera.position.set(lx + 0.1, ly + 0.04, lz + 1.12);
-  camera.lookAt(lx, ly - 0.02, lz);
+  camera.position.set(lx + 0.06, ly + 0.06, lz + 1.32);
+  camera.lookAt(lx, ly - 0.04, lz);
   return camera;
 }
 
@@ -134,26 +134,26 @@ export function makeGoldGlasses() {
     transparent: true,
     opacity: 0.28,
   });
-  const frameL = new THREE.Mesh(new RoundedBoxGeometry(0.046, 0.028, 0.01, 3, 0.006), gold);
-  frameL.position.set(-0.032, 0, 0);
+  const frameL = new THREE.Mesh(new RoundedBoxGeometry(0.038, 0.024, 0.008, 3, 0.005), gold);
+  frameL.position.set(-0.026, 0, 0);
   glasses.add(frameL);
   const frameR = frameL.clone();
-  frameR.position.x = 0.032;
+  frameR.position.x = 0.026;
   glasses.add(frameR);
-  const glassL = new THREE.Mesh(new THREE.PlaneGeometry(0.036, 0.02), lens);
-  glassL.position.set(-0.032, 0, 0.006);
+  const glassL = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 0.018), lens);
+  glassL.position.set(-0.026, 0, 0.005);
   glasses.add(glassL);
   const glassR = glassL.clone();
-  glassR.position.x = 0.032;
+  glassR.position.x = 0.026;
   glasses.add(glassR);
-  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.006, 0.008), gold);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.007), gold);
   glasses.add(bridge);
-  const armGL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.005, 0.005), gold);
-  armGL.position.set(-0.058, 0, -0.016);
+  const armGL = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.004, 0.004), gold);
+  armGL.position.set(-0.048, 0, -0.014);
   armGL.rotation.y = 0.52;
   glasses.add(armGL);
   const armGR = armGL.clone();
-  armGR.position.x = 0.058;
+  armGR.position.x = 0.048;
   armGR.rotation.y = -0.52;
   glasses.add(armGR);
   return glasses;

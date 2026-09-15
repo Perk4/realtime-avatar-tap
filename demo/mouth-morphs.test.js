@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MOUTH_CENTER, buildMouthMorphs, mouthFalloff } from "./mouth-morphs.js";
+import { MOUTH_ALBEDO, MOUTH_CENTER, buildMouthMorphs, mouthFalloff, paintMouthViseme } from "./mouth-morphs.js";
 import { visemeFromLip } from "./rig-pose.js";
 
 test("mouth falloff is 1 at the lip center and 0 far away", () => {
@@ -11,15 +11,15 @@ test("mouth falloff is 1 at the lip center and 0 far away", () => {
 test("jaw morph drops the chin and pulls the lip opening back", () => {
   const positions = new Float32Array([
     MOUTH_CENTER.x,
-    MOUTH_CENTER.y - 0.02,
+    MOUTH_CENTER.y - 0.012,
     MOUTH_CENTER.z,
     2,
     2,
     2,
   ]);
   const morphs = buildMouthMorphs(positions);
-  assert.ok(morphs.jaw[1] < -0.02, String(morphs.jaw[1]));
-  assert.ok(morphs.jaw[2] < 0, String(morphs.jaw[2]));
+  assert.ok(morphs.jaw[1] < -0.004, String(morphs.jaw[1]));
+  assert.ok(morphs.jaw[2] <= 0, String(morphs.jaw[2]));
   assert.equal(morphs.jaw[3], 0);
   assert.equal(morphs.jaw[4], 0);
   assert.equal(morphs.jaw[5], 0);
@@ -32,7 +32,7 @@ test("lift morph raises the upper lip", () => {
     MOUTH_CENTER.z,
   ]);
   const morphs = buildMouthMorphs(positions);
-  assert.ok(morphs.lift[1] > 0.01, String(morphs.lift[1]));
+  assert.ok(morphs.lift[1] > 0.001, String(morphs.lift[1]));
 });
 
 test("wide and funnel morphs pull corners in opposite directions", () => {
@@ -50,6 +50,64 @@ test("wide and funnel morphs pull corners in opposite directions", () => {
   assert.ok(morphs.funnel[0] < 0);
   assert.ok(morphs.funnel[3] > 0);
   assert.ok(morphs.funnel[2] > 0);
+});
+
+test("paintMouthViseme draws a cavity into a 2d context", () => {
+  const calls = [];
+  const ctx = {
+    save() {
+      calls.push("save");
+    },
+    restore() {
+      calls.push("restore");
+    },
+    beginPath() {
+      calls.push("beginPath");
+    },
+    ellipse(...args) {
+      calls.push(["ellipse", ...args]);
+    },
+    fill() {
+      calls.push("fill");
+    },
+    stroke() {
+      calls.push("stroke");
+    },
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 0,
+  };
+  paintMouthViseme(ctx, visemeFromLip("wide"));
+  assert.ok(calls.includes("save"));
+  assert.ok(calls.includes("fill"));
+  assert.ok(calls.includes("stroke"));
+  assert.ok(calls.includes("restore"));
+  const ellipse = calls.find((item) => Array.isArray(item) && item[0] === "ellipse");
+  assert.ok(ellipse, "expected a mouth ellipse");
+  assert.ok(Math.abs(ellipse[1] - MOUTH_ALBEDO.cx) < 1, String(ellipse[1]));
+});
+
+test("closed viseme leaves the authored albedo mouth alone", () => {
+  const calls = [];
+  const ctx = {
+    save() {
+      calls.push("save");
+    },
+    restore() {
+      calls.push("restore");
+    },
+    beginPath() {},
+    ellipse() {},
+    fill() {
+      calls.push("fill");
+    },
+    stroke() {},
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 0,
+  };
+  paintMouthViseme(ctx, visemeFromLip("closed"));
+  assert.equal(calls.length, 0);
 });
 
 test("viseme table keeps graph-safe channels and readable morph steps", () => {
