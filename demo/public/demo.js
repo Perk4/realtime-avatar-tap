@@ -13,6 +13,7 @@ import {
   paintCharacter,
   parseCharacter,
 } from "/lib/characters.js";
+import { paintHud } from "/lib/paint-hud.js";
 import { createGraph, tickGraph, triggerGesture } from "/lib/anim-graph.js";
 import {
   BLOCK_MS,
@@ -537,12 +538,14 @@ function paintFrame(block, clockMs) {
   const scene = composeScene(block, tick);
   const pipeline = characterPipeline(character);
   const use3d = pipeline === "webgl3d" && stage !== null;
-  canvas.classList.toggle("off", use3d);
+  canvas.classList.remove("off");
   canvas3d.classList.toggle("off", !use3d);
   if (use3d) {
     stage.setCharacter(character);
     stage.apply(scene);
     stage.render();
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    paintHud(gfx, scene, `   ${character}`);
   } else {
     paintCharacter(character, gfx, scene);
   }
@@ -571,13 +574,13 @@ function applyShotFromQuery() {
   if (shotMode === "nod") {
     lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
     triggerGesture(graph, "nod", 0);
-    paintFrame(lastBlock, 160);
+    paintFrame(lastBlock, 340);
     return;
   }
   if (shotMode === "glasses") {
     lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
     triggerGesture(graph, "glasses", 0);
-    paintFrame(lastBlock, 260);
+    paintFrame(lastBlock, 410);
     return;
   }
   lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
@@ -598,13 +601,13 @@ function applyPreviewFromQuery() {
   if (preview === "nod") {
     lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
     triggerGesture(graph, "nod", 0);
-    paintFrame(lastBlock, 160);
+    paintFrame(lastBlock, 340);
     return;
   }
   if (preview === "glasses") {
     lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
     triggerGesture(graph, "glasses", 0);
-    paintFrame(lastBlock, 260);
+    paintFrame(lastBlock, 410);
   }
 }
 

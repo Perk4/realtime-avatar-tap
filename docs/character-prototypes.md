@@ -12,13 +12,13 @@ The live path is unchanged. Browser WebRTC still posts SDP to `POST /api/session
 
 **AvatarBlock.** The tap's only visual product. `lip` is `closed`, `narrow`, `open`, or `wide`. `pose` is `rest` or `talk`. Lookup is window RMS, not a viseme dictionary.
 
-**Scene.** `sceneFromBlock` maps a block to bounce, tilt, and `mouthH`. `composeScene` adds graph channels. `rigPoseFromScene` maps that to mouth open, head pitch, and glasses drop for the 3D rig.
+**Scene.** `sceneFromBlock` maps a block to bounce, tilt, and `mouthH`. `composeScene` adds graph channels. `rigPoseFromScene` maps `lip` through `visemeFromLip` (jaw + cavity scales, not a 0-1 sliver) plus head pitch and glasses drop.
 
-**Graph tick.** `{ gesture, nod, glasses, idleBreathe }`. Additive overlay. It never writes `lip`.
+**Graph tick.** `{ gesture, nod, glasses, idleBreathe }`. Additive overlay. It never writes `lip`. Nod peaks near half a radian so a close-up head reads like Tater's tilt.
 
 **Character id.** `analyst` (default, WebGL), `blocks` (WebGL), or `tater` (canvas 2D). Parsed from `?character=` at the demo boundary.
 
-**Pipeline.** `characterPipeline(id)` is `webgl3d` or `canvas2d`. The page shows one canvas and hides the other. It does not mix painters onto the WebGL buffer.
+**Pipeline.** `characterPipeline(id)` is `webgl3d` or `canvas2d`. WebGL paints the puppet. The 2D canvas stays on top as a transparent HUD so `lip` / `pose` / `gesture` stay on the picture the way Tater always did.
 
 ## How it works
 
@@ -40,7 +40,7 @@ flowchart LR
 
 The graph clocks from wall time in the page so idle breathe still moves when no block is pumping. Tests pass explicit `nowMs`. After `pose` flips from `talk` to `rest`, the graph starts a nod. After 2.8 s of rest it starts a glasses slide. Nod and Glasses buttons call `triggerGesture` on the same object. **Preview lips** fetches `/fixture.wav` and plays it through the same `playReply` pump the GPT path uses, so lips move without `OPENAI_API_KEY`.
 
-Lips stay on the block. A wide viseme plus a nod is a legal frame. The 3D rig rotates the head by `tilt + nod` and drops glasses by `glasses`. The graph does not write `lip`.
+Lips stay on the block. A wide viseme plus a nod is a legal frame. The 3D camera is a talking-head close-up, not a wide desk establishing shot, so jaw, cavity, nod, and glasses land at Tater-like size on screen. The graph does not write `lip`.
 
 ## Runtime and deploy
 
@@ -80,7 +80,7 @@ What this stub proves:
 
 - `tickGraph` returns overlay numbers. It does not return `lip`.
 - `composeScene` copies `block.lip` through.
-- `rigPoseFromScene` opens the mouth from `lip` and adds nod to `headPitch`.
+- `rigPoseFromScene` maps `lip` through `visemeFromLip` (jaw + cavity) and adds nod to `headPitch`.
 - Tests ingest reply PCM, ignore caller PCM, then trigger nod on the same block.
 
 What a later graph can add without changing the tap: clip names, hold and blend, look-ats. Drive those from `pose` edges and from UI. Keep visemes on `emitAvatarBlock`.

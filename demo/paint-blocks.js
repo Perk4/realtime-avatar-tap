@@ -24,12 +24,12 @@ export function paintBlocks(g, scene) {
   isoCube(g, -70, 118, 140, 70, 36, "#e8eef4", "#c9d4de", "#9aadb8");
   isoCube(g, -18, 70, 36, 54, 18, "#8a4e3a", "#6b3a2c", "#4a281e");
 
-  const glassesDrop = (scene.glasses ?? 0) * 8;
+  const glassesDrop = (scene.glasses ?? 0) * 18;
   isoCube(g, -52, -8, 104, 88, 28, "#c47a52", "#8a4e3a", "#5a3224");
   isoCube(g, -44, -2 + glassesDrop, 36, 22, 10, "#e6c84a", "#c9a43e", "#8a7020");
   isoCube(g, 8, -2 + glassesDrop, 36, 22, 10, "#e6c84a", "#c9a43e", "#8a7020");
 
-  const mouthH = Math.max(8, scene.mouthH * 0.7);
+  const mouthH = Math.max(10, scene.mouthH * 0.9);
   isoCube(g, -18, 44, 36, mouthH, 12, "#4a1c18", "#2a1010", "#1a0808");
 
   g.restore();

@@ -4,16 +4,14 @@
  */
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { addBroadcastSet, addFilmLights, disposeObject, skinMaterial } from "./rig-set.js";
+import { addBroadcastSet, addFilmLights, disposeObject, skinMaterial, talkingHeadCamera } from "./rig-set.js";
 
 export function createAnalystWorld(renderer) {
   const scene = new THREE.Scene();
   addFilmLights(scene, renderer);
   addBroadcastSet(scene);
 
-  const camera = new THREE.PerspectiveCamera(30, 640 / 360, 0.1, 40);
-  camera.position.set(0.02, 1.26, 3.45);
-  camera.lookAt(0.05, 1.12, 0);
+  const camera = talkingHeadCamera([0.4, 1.5, 0.06]);
 
   const talent = new THREE.Group();
   talent.position.set(0.4, 0, 0.06);
@@ -78,10 +76,6 @@ export function createAnalystWorld(renderer) {
   skull.castShadow = true;
   head.add(skull);
 
-  const jawBone = new THREE.Mesh(new RoundedBoxGeometry(0.38, 0.18, 0.28, 5, 0.08), skin);
-  jawBone.position.set(0, -0.16, 0.04);
-  head.add(jawBone);
-
   const cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), skinMaterial(0xa8644c));
   cheekL.position.set(-0.15, -0.04, 0.15);
   head.add(cheekL);
@@ -129,30 +123,31 @@ export function createAnalystWorld(renderer) {
   head.add(eyeR.group);
 
   const glasses = makeGlasses();
+  glasses.position.y = 0.02;
   head.add(glasses);
 
   const jaw = new THREE.Group();
-  jaw.position.set(0, -0.1, 0.13);
+  jaw.position.set(0, -0.12, 0.02);
   head.add(jaw);
-  const mouth = new THREE.Mesh(
-    new RoundedBoxGeometry(0.17, 0.045, 0.09, 3, 0.02),
-    new THREE.MeshStandardMaterial({ color: 0x3a1512, roughness: 0.55 }),
+  const jawBone = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.16, 0.26, 5, 0.07), skin);
+  jawBone.position.set(0, -0.06, 0.1);
+  jaw.add(jawBone);
+
+  const mouth = new THREE.Group();
+  mouth.position.set(0, -0.08, 0.21);
+  head.add(mouth);
+  const cavity = new THREE.Mesh(
+    new THREE.CircleGeometry(0.095, 22),
+    new THREE.MeshStandardMaterial({ color: 0x2a0c0c, roughness: 0.9, side: THREE.DoubleSide }),
   );
-  jaw.add(mouth);
-  const inner = new THREE.Mesh(
-    new THREE.BoxGeometry(0.11, 0.032, 0.05),
-    new THREE.MeshStandardMaterial({ color: 0x8a3a32, roughness: 0.6 }),
-  );
-  inner.position.set(0, -0.006, 0.012);
-  inner.visible = false;
-  jaw.add(inner);
+  mouth.add(cavity);
   const teeth = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 0.014, 0.032),
-    new THREE.MeshStandardMaterial({ color: 0xf2ece4, roughness: 0.32 }),
+    new THREE.CircleGeometry(0.07, 16, 0, Math.PI),
+    new THREE.MeshStandardMaterial({ color: 0xf2ece4, roughness: 0.32, side: THREE.DoubleSide }),
   );
-  teeth.position.set(0, 0.014, 0.022);
-  teeth.visible = false;
-  jaw.add(teeth);
+  teeth.position.set(0, 0.018, 0.004);
+  teeth.rotation.z = Math.PI;
+  mouth.add(teeth);
 
   const glassesRestY = glasses.position.y;
   const talentRestY = talent.position.y;
@@ -162,14 +157,15 @@ export function createAnalystWorld(renderer) {
     scene,
     camera,
     apply(pose) {
-      talent.position.y = talentRestY + pose.breathe * 0.004 + pose.bounce * 0.0014;
+      const viseme = pose.viseme;
+      talent.position.y = talentRestY + pose.breathe * 0.006 + pose.bounce * 0.0018;
       head.rotation.x = pose.headPitch;
-      head.rotation.z = pose.talking ? Math.sin(pose.bounce) * 0.02 : 0;
-      jaw.rotation.x = pose.mouthOpen * 0.58;
-      mouth.scale.set(1 + pose.mouthOpen * 0.18, 0.7 + pose.mouthOpen * 3.4, 1 + pose.mouthOpen * 0.45);
-      inner.visible = pose.mouthOpen > 0.12;
-      teeth.visible = pose.mouthOpen > 0.18;
-      glasses.position.y = glassesRestY - pose.glassesDrop * 0.055;
+      head.rotation.z = pose.talking ? Math.sin(pose.bounce) * 0.03 : 0;
+      jaw.rotation.x = viseme.jaw;
+      cavity.scale.set(viseme.cavityX, viseme.cavityY, 1);
+      teeth.visible = viseme.teeth;
+      teeth.scale.set(viseme.cavityX * 0.85, Math.max(0.4, viseme.cavityY * 0.55), 1);
+      glasses.position.y = glassesRestY - pose.glassesDrop * 0.11;
       const glance = pose.talking ? 0.012 : 0;
       eyeL.pupil.position.x = glance;
       eyeR.pupil.position.x = glance;
@@ -194,27 +190,27 @@ function makeGlasses() {
     transparent: true,
     opacity: 0.32,
   });
-  const frameL = new THREE.Mesh(new RoundedBoxGeometry(0.17, 0.11, 0.03, 3, 0.02), gold);
-  frameL.position.set(-0.11, 0.04, 0.21);
+  const frameL = new THREE.Mesh(new RoundedBoxGeometry(0.13, 0.072, 0.024, 3, 0.016), gold);
+  frameL.position.set(-0.1, 0.055, 0.205);
   glasses.add(frameL);
   const frameR = frameL.clone();
-  frameR.position.x = 0.11;
+  frameR.position.x = 0.1;
   glasses.add(frameR);
-  const glassL = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.075), lens);
-  glassL.position.set(-0.11, 0.04, 0.228);
+  const glassL = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.05), lens);
+  glassL.position.set(-0.1, 0.055, 0.22);
   glasses.add(glassL);
   const glassR = glassL.clone();
-  glassR.position.x = 0.11;
+  glassR.position.x = 0.1;
   glasses.add(glassR);
-  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.018, 0.02), gold);
-  bridge.position.set(0, 0.04, 0.21);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.014, 0.018), gold);
+  bridge.position.set(0, 0.055, 0.205);
   glasses.add(bridge);
-  const armGL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.014, 0.014), gold);
-  armGL.position.set(-0.22, 0.04, 0.15);
+  const armGL = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.012), gold);
+  armGL.position.set(-0.2, 0.055, 0.15);
   armGL.rotation.y = 0.52;
   glasses.add(armGL);
   const armGR = armGL.clone();
-  armGR.position.x = 0.22;
+  armGR.position.x = 0.2;
   armGR.rotation.y = -0.52;
   glasses.add(armGR);
   return glasses;
