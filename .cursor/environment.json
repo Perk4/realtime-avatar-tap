@@ -1,0 +1,14 @@
+{
+  "name": "realtime-avatar-tap",
+  "install": "npm ci && npm run build",
+  "terminals": [
+    {
+      "name": "demo",
+      "command": "npm run demo",
+      "description": "Builds dist/ and serves the Tater potato avatar demo on http://127.0.0.1:4173 (endpoints: GET /api/status, POST /api/talk, POST /api/session). The static canvas avatar and the assertContinuous button work without a key; the GPT-Live conversation paths need OPENAI_API_KEY exported for this process."
+    }
+  ],
+  "ports": [
+    { "name": "demo", "port": 4173 }
+  ]
+}
