@@ -1,5 +1,5 @@
 /**
- * Three.js host for the Incredibles-style analyst and the block puppet.
+ * Three.js host for the Rocketbox sports analyst and the block puppet.
  * Tater stays on the 2D canvas. This owns the WebGL canvas, including still capture.
  */
 import * as THREE from "three";
@@ -23,32 +23,51 @@ export function createWebglStage(canvas) {
 
   let world = null;
   let characterId = "analyst";
+  let loadGen = 0;
+  let ready = Promise.resolve();
 
-  function mount(id) {
+  async function mount(id) {
+    const token = ++loadGen;
     if (world) {
       world.dispose();
       world = null;
     }
     characterId = id === "blocks" ? "blocks" : "analyst";
-    world = characterId === "blocks" ? createBlocksWorld(renderer) : createAnalystWorld(renderer);
+    if (characterId === "blocks") {
+      world = createBlocksWorld(renderer);
+      return;
+    }
+    const next = await createAnalystWorld(renderer);
+    if (token !== loadGen) {
+      next.dispose();
+      return;
+    }
+    world = next;
   }
 
-  mount("analyst");
+  ready = mount("analyst");
 
   return {
     renderer,
+    whenReady() {
+      return ready;
+    },
     get characterId() {
       return characterId;
     },
+    isReady() {
+      return world !== null;
+    },
     setCharacter(id) {
       if (id === "tater") {
-        return;
+        return ready;
       }
       const next = id === "blocks" ? "blocks" : "analyst";
       if (next === characterId && world) {
-        return;
+        return ready;
       }
-      mount(next);
+      ready = mount(next);
+      return ready;
     },
     apply(sceneState) {
       if (!world) {

@@ -1,7 +1,7 @@
 export const GESTURES = ["idle", "nod", "glasses"];
 
-const NOD_MS = 420;
-const GLASSES_MS = 520;
+const NOD_MS = 680;
+const GLASSES_MS = 820;
 const NOD_AFTER_TALK_MS = 80;
 const NOD_WINDOW_MS = 160;
 const GLASSES_EVERY_MS = 2800;
@@ -35,9 +35,9 @@ export function tickGraph(graph, block, nowMs) {
   const progress = gestureProgress(graph, nowMs);
   return {
     gesture: graph.active,
-    nod: graph.active === "nod" ? Math.sin(progress * Math.PI) * -0.22 : 0,
+    nod: graph.active === "nod" ? Math.sin(progress * Math.PI) * -0.38 : 0,
     glasses: graph.active === "glasses" ? Math.sin(progress * Math.PI) : 0,
-    idleBreathe: graph.active === "idle" ? Math.sin(nowMs / 380) * 2.5 : 0,
+    idleBreathe: graph.active === "idle" ? Math.sin(nowMs / 380) * 7 : 0,
   };
 }
 

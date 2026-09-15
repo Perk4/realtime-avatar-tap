@@ -5,59 +5,86 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
+
+let areaLightsReady = false;
 
 export function addFilmLights(scene, renderer) {
+  if (!areaLightsReady) {
+    RectAreaLightUniformsLib.init();
+    areaLightsReady = true;
+  }
+
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const env = pmrem.fromScene(new RoomEnvironment(), 0.08).texture;
   scene.environment = env;
-  scene.environmentIntensity = 0.48;
+  scene.environmentIntensity = 0.28;
   pmrem.dispose();
 
-  scene.add(new THREE.HemisphereLight(0xe8f0f6, 0x3a2418, 0.62));
+  scene.add(new THREE.HemisphereLight(0xdde6ee, 0x1a140f, 0.22));
 
-  const key = new THREE.DirectionalLight(0xfff1dd, 2.55);
-  key.position.set(-2.6, 3.8, 4.4);
+  const key = new THREE.DirectionalLight(0xffe2c4, 1.72);
+  key.position.set(-2.4, 3.6, 4.2);
   key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.radius = 6;
+  key.shadow.blurSamples = 16;
   key.shadow.camera.near = 0.5;
-  key.shadow.camera.far = 16;
-  key.shadow.camera.left = -3.2;
-  key.shadow.camera.right = 3.2;
-  key.shadow.camera.top = 3.2;
-  key.shadow.camera.bottom = -3.2;
-  key.shadow.bias = -0.00035;
+  key.shadow.camera.far = 18;
+  key.shadow.camera.left = -3.4;
+  key.shadow.camera.right = 3.4;
+  key.shadow.camera.top = 3.4;
+  key.shadow.camera.bottom = -3.4;
+  key.shadow.bias = -0.00018;
+  key.shadow.normalBias = 0.02;
   scene.add(key);
 
-  const fill = new THREE.DirectionalLight(0x9bb8d4, 0.78);
-  fill.position.set(3.4, 1.7, 2.6);
+  const keySoft = new THREE.RectAreaLight(0xffefd4, 7.5, 3.2, 1.8);
+  keySoft.position.set(-1.9, 3.1, 3.4);
+  keySoft.lookAt(0.1, 1.55, 0.1);
+  scene.add(keySoft);
+
+  const fill = new THREE.DirectionalLight(0x9bb8d4, 0.62);
+  fill.position.set(3.4, 2.2, 3.0);
   scene.add(fill);
 
-  const rim = new THREE.DirectionalLight(0xf7fbff, 1.85);
-  rim.position.set(1.1, 3.1, -4.4);
+  const fillSoft = new THREE.RectAreaLight(0xb7cce4, 3.2, 2.4, 1.4);
+  fillSoft.position.set(2.6, 2.0, 2.4);
+  fillSoft.lookAt(0.1, 1.5, 0.1);
+  scene.add(fillSoft);
+
+  const rim = new THREE.DirectionalLight(0xe8eef6, 1.55);
+  rim.position.set(0.55, 3.4, -4.6);
   scene.add(rim);
 
-  const bounce = new THREE.PointLight(0xff9966, 0.62, 6, 1.6);
-  bounce.position.set(0.25, 0.88, 1.15);
+  const face = new THREE.SpotLight(0xffe6c8, 4.4, 8, 0.48, 0.55, 1.4);
+  face.position.set(-0.45, 2.28, 1.85);
+  face.target.position.set(0.08, 1.64, 0.08);
+  scene.add(face);
+  scene.add(face.target);
+
+  const bounce = new THREE.PointLight(0xe8a070, 0.38, 6, 1.6);
+  bounce.position.set(0.2, 0.82, 1.2);
   scene.add(bounce);
 
-  const screen = new THREE.PointLight(0x3ec3e8, 0.9, 3.6, 2);
+  const screen = new THREE.PointLight(0x3ec3e8, 0.45, 3.2, 2);
   screen.position.set(-0.52, 0.96, 0.72);
   scene.add(screen);
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.14;
+  renderer.toneMappingExposure = 1.08;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 }
 
 export function addBroadcastSet(scene) {
-  scene.background = new THREE.Color(0x6f7c84);
-  scene.fog = new THREE.Fog(0x6f7c84, 7, 18);
+  scene.background = new THREE.Color(0x2c333a);
+  scene.fog = new THREE.Fog(0x2c333a, 8, 20);
 
   const wall = new THREE.Mesh(
     new THREE.PlaneGeometry(16, 9),
-    new THREE.MeshStandardMaterial({ color: 0x7c8890, roughness: 0.88, metalness: 0.04 }),
+    new THREE.MeshStandardMaterial({ color: 0x3a424a, roughness: 0.86, metalness: 0.04 }),
   );
   wall.position.set(0.5, 2.3, -3.5);
   scene.add(wall);
@@ -83,6 +110,53 @@ export function addBroadcastSet(scene) {
   addDesk(scene);
   addLaptop(scene);
   addMug(scene);
+}
+
+export function talkingHeadCamera(lookAt = [0, 1.62, 0.08], distance = 1.32) {
+  const camera = new THREE.PerspectiveCamera(28, 640 / 360, 0.08, 40);
+  const [lx, ly, lz] = lookAt;
+  camera.position.set(lx + 0.06, ly + 0.08, lz + distance);
+  camera.lookAt(lx, ly - 0.06, lz);
+  return camera;
+}
+
+export function makeGoldGlasses() {
+  const glasses = new THREE.Group();
+  const gold = new THREE.MeshStandardMaterial({
+    color: 0xd7b44a,
+    metalness: 0.88,
+    roughness: 0.2,
+  });
+  const lens = new THREE.MeshPhysicalMaterial({
+    color: 0x8a4e3a,
+    roughness: 0.12,
+    transmission: 0.22,
+    transparent: true,
+    opacity: 0.28,
+  });
+  const frameL = new THREE.Mesh(new RoundedBoxGeometry(0.038, 0.024, 0.008, 3, 0.005), gold);
+  frameL.position.set(-0.026, 0, 0);
+  glasses.add(frameL);
+  const frameR = frameL.clone();
+  frameR.position.x = 0.026;
+  glasses.add(frameR);
+  const glassL = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 0.018), lens);
+  glassL.position.set(-0.026, 0, 0.005);
+  glasses.add(glassL);
+  const glassR = glassL.clone();
+  glassR.position.x = 0.026;
+  glasses.add(glassR);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.005, 0.007), gold);
+  glasses.add(bridge);
+  const armGL = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.004, 0.004), gold);
+  armGL.position.set(-0.048, 0, -0.014);
+  armGL.rotation.y = 0.52;
+  glasses.add(armGL);
+  const armGR = armGL.clone();
+  armGR.position.x = 0.048;
+  armGR.rotation.y = -0.52;
+  glasses.add(armGR);
+  return glasses;
 }
 
 export function skinMaterial(color = 0x8a4e3a) {

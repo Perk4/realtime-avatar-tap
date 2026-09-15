@@ -96,6 +96,21 @@ test("GET /vendor/three/jsm/geometries/RoundedBoxGeometry.js is reachable", asyn
   assert.match(body, /RoundedBoxGeometry/);
 });
 
+test("GET /assets/analyst sports-male-04 glb is the MIT Rocketbox base", async (t) => {
+  const server = await listen(t);
+  const response = await fetch(url(server, "/assets/analyst/sports-male-04.glb"));
+  assert.equal(response.status, 200);
+  const bytes = await response.arrayBuffer();
+  assert.ok(bytes.byteLength > 200_000, String(bytes.byteLength));
+  const header = Buffer.from(bytes.slice(0, 4)).toString("ascii");
+  assert.equal(header, "glTF");
+  const license = await fetch(url(server, "/assets/analyst/LICENSE.md"));
+  assert.equal(license.status, 200);
+  const text = await license.text();
+  assert.match(text, /MIT License/);
+  assert.match(text, /Microsoft/);
+});
+
 test("demo.js loads the WebGL stage with a dynamic import", async (t) => {
   const server = await listen(t);
   const html = await (await fetch(url(server, "/"))).text();

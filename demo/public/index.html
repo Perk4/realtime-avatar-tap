@@ -63,6 +63,12 @@
         width: 100%;
         height: 100%;
       }
+      .stage canvas#avatar3d {
+        z-index: 0;
+      }
+      .stage canvas#avatar {
+        z-index: 1;
+      }
       .stage canvas.off {
         visibility: hidden;
         pointer-events: none;
@@ -128,10 +134,11 @@
   </head>
   <body>
     <main>
-      <h1>Stylized 3D analyst, plus Tater fallback</h1>
+      <h1>Mesh analyst, plus Tater fallback</h1>
       <p class="lede">
-        Lead look is a Three.js toon/PBR talking head in a college-football
-        broadcast studio. <strong>Live duplex</strong> is in-page WebRTC.
+        Lead look is Microsoft Rocketbox <code>Sports_Male_04</code> (MIT;
+        athletic build, authored visemes) restyled as a college-football
+        broadcaster. Gold glasses and a navy polo sit in the studio. <strong>Live duplex</strong> is in-page WebRTC.
         <strong>Play fixture</strong> / <strong>Use mic</strong> still send one
         WAV turn through <code>POST /api/talk</code>. Only reply audio hits
         <code>ingestAudioChunk</code> / <code>emitAvatarBlock</code>. The mouth

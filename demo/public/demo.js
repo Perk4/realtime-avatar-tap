@@ -13,6 +13,7 @@ import {
   paintCharacter,
   parseCharacter,
 } from "/lib/characters.js";
+import { paintHud } from "/lib/paint-hud.js";
 import { createGraph, tickGraph, triggerGesture } from "/lib/anim-graph.js";
 import {
   BLOCK_MS,
@@ -97,9 +98,7 @@ if (shotMode) {
 }
 void bootStage().then(() => {
   if (shotMode) {
-    requestAnimationFrame(() => {
-      applyShotFromQuery();
-    });
+    applyShotFromQuery();
     return;
   }
   drawIdle();
@@ -337,6 +336,7 @@ async function bootStage() {
   try {
     const { createWebglStage } = await import("/lib/webgl-stage.js");
     stage = createWebglStage(canvas3d);
+    await stage.whenReady();
   } catch (error) {
     stage = null;
     const message = error instanceof Error ? error.message : String(error);
@@ -536,13 +536,14 @@ function paintFrame(block, clockMs) {
   const tick = tickGraph(graph, block, clockMs);
   const scene = composeScene(block, tick);
   const pipeline = characterPipeline(character);
-  const use3d = pipeline === "webgl3d" && stage !== null;
-  canvas.classList.toggle("off", use3d);
+  const use3d = pipeline === "webgl3d" && stage !== null && stage.isReady();
+  canvas.classList.remove("off");
   canvas3d.classList.toggle("off", !use3d);
   if (use3d) {
-    stage.setCharacter(character);
     stage.apply(scene);
     stage.render();
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    paintHud(gfx, scene, `   ${character}`);
   } else {
     paintCharacter(character, gfx, scene);
   }
@@ -571,13 +572,13 @@ function applyShotFromQuery() {
   if (shotMode === "nod") {
     lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
     triggerGesture(graph, "nod", 0);
-    paintFrame(lastBlock, 160);
+    paintFrame(lastBlock, 340);
     return;
   }
   if (shotMode === "glasses") {
     lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
     triggerGesture(graph, "glasses", 0);
-    paintFrame(lastBlock, 260);
+    paintFrame(lastBlock, 410);
     return;
   }
   lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
@@ -598,13 +599,13 @@ function applyPreviewFromQuery() {
   if (preview === "nod") {
     lastBlock = { t0Ms: 80, durationMs: 40, lip: "wide", pose: "talk" };
     triggerGesture(graph, "nod", 0);
-    paintFrame(lastBlock, 160);
+    paintFrame(lastBlock, 340);
     return;
   }
   if (preview === "glasses") {
     lastBlock = { t0Ms: 0, durationMs: 40, lip: "closed", pose: "rest" };
     triggerGesture(graph, "glasses", 0);
-    paintFrame(lastBlock, 260);
+    paintFrame(lastBlock, 410);
   }
 }
 
@@ -640,6 +641,12 @@ function setCharacter(id) {
   url.searchParams.set("character", character);
   history.replaceState({}, "", url);
   markCharacter();
+  const pending = stage?.setCharacter(character);
+  if (pending && typeof pending.then === "function") {
+    void pending.then(() => {
+      paintFrame(lastBlock, nowMs());
+    });
+  }
   paintFrame(lastBlock, nowMs());
 }
 
